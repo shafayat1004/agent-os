@@ -1,4 +1,4 @@
-# agent-os v0.1 — A research-graded spec for agentic coding, with a thin validator
+# agent-os v0.1 - A research-graded spec for agentic coding, with a thin validator
 
 Date: 2026-07-29
 Status: approved (design), pre-implementation
@@ -18,6 +18,20 @@ Everything the report grades *emerging or lower* (skill-promotion pipelines, wor
 dashboards, knowledge graphs, model adapters, memory pruning, telemetry) is documented in the roadmap
 and **left unbuilt** until it can be measured. Building all of it at once is the exact anti-pattern the
 report warns against ("start with a huge everything and let the agent figure it out").
+
+### 1.1 Framing: this is a pre-codebase bootstrap
+
+agent-os is the **structure an agent sets up before it reads any repository code**. You copy it into a
+target repo (greenfield or brownfield) as the operating layer. The normative artifacts ship as
+**skeleton templates**, not filled-in data. Real content arrives later: as work proceeds in the target
+repo, the agent populates and updates `STATE.yaml`, appends to `evidence/ledger.ndjson`, and refines the
+policies. The validator checks conformance at every step.
+
+So the deliverable is two things at once: a **spec** (the schemas + the format) and a **copy-in
+scaffold** (the skeleton files + a `bootstrap` step + the zero-dep validator). `examples/subject/` shows
+one populated instance derived from a real repo. This matches the report's "pre-codebase setup"
+guidance: create the rule file, durable-state schema, evidence ledger, and policy layer first, then
+point the agent at the code.
 
 ## 2. Non-goals (v0.1)
 
@@ -41,13 +55,13 @@ Confirmed by inspection of `/Volumes/HomeX/shafayat/Code/subject`:
 
 ### Antipatterns present (each maps to a report finding)
 
-1. **Rule-file bloat** — `CLAUDE.md` is ~230 lines mixing operative rules with narrative; a large docs
+1. **Rule-file bloat** - `CLAUDE.md` is ~230 lines mixing operative rules with narrative; a large docs
    site is the "single source of truth." Report: large context files reduce success (A-, avoid).
-2. **Prose memory, no evidence discipline** — engineering-log + codemem store prose; no
+2. **Prose memory, no evidence discipline** - engineering-log + codemem store prose; no
    fact-vs-inference, no provenance/hash, no supersede/staleness. Report: A-graded biggest gap.
-3. **No typed durable STATE** — task state lives in conversation + prose; nothing survives compaction as
+3. **No typed durable STATE** - task state lives in conversation + prose; nothing survives compaction as
    a machine-readable object. Report: A- gap.
-4. **Skills have no lifecycle** — no versioning, tests, or governance. Report: emerging, governance req'd.
+4. **Skills have no lifecycle** - no versioning, tests, or governance. Report: emerging, governance req'd.
 
 ## 4. Normative artifacts (v0.1 spec surface)
 
@@ -69,7 +83,7 @@ validator. Grade = report evidence grade.
   `Conventions (pointer)`. Narrative belongs in linked docs, not here.
 - **Size budget**: soft cap ~150 lines / ~1500 tokens for the operative file. Validator warns past soft
   cap, fails past a hard cap (~250 lines). This directly counters antipattern #1.
-- `CLAUDE.md` (and future `.cursor`/other) is a ≤5-line pointer to `AGENTS.md` — one operative source,
+- `CLAUDE.md` (and future `.cursor`/other) is a ≤5-line pointer to `AGENTS.md` - one operative source,
   many entry points → model-independence.
 
 ### 4.2 `STATE.yaml` (task-state schema)
@@ -153,17 +167,17 @@ Claude Code hooks + git pre-commit exactly as subject/ already does.
   JSON Schema conformance is a small hand-rolled checker (Draft-07 subset we actually use), not an
   external lib, to keep the zero-dep guarantee.
 - **Subcommands**:
-  - `validate state [FILE]` — STATE.yaml vs task-state schema.
-  - `validate ledger [FILE]` — each ndjson line vs evidence schema.
-  - `validate diff [--staged | A..B]` — git diff vs path-policy → pass/fail + exact violations.
-  - `validate rules [AGENTS.md]` — size/structure lint.
-  - `validate skills` — manifest lint vs `.claude/skills/*`.
-  - `validate deps` — dependency-policy scan.
-  - `validate all` — run every check; nonzero exit on any failure.
+  - `validate state [FILE]` - STATE.yaml vs task-state schema.
+  - `validate ledger [FILE]` - each ndjson line vs evidence schema.
+  - `validate diff [--staged | A..B]` - git diff vs path-policy → pass/fail + exact violations.
+  - `validate rules [AGENTS.md]` - size/structure lint.
+  - `validate skills` - manifest lint vs `.claude/skills/*`.
+  - `validate deps` - dependency-policy scan.
+  - `validate all` - run every check; nonzero exit on any failure.
 - Each check prints its **evidence grade**. Machine-readable `--json` output for CI.
 - Exit codes: `0` pass, `1` violation, `2` config/usage error.
 
-## 7. Repository layout (v0.1 — only what is built)
+## 7. Repository layout (v0.1 - only what is built)
 
 ```
 agent-os/
@@ -186,7 +200,8 @@ agent-os/
 │   ├── stop-check
 │   └── pre-commit
 ├── bin/
-│   └── agentos                 # entry point
+│   ├── agentos                 # validator entry point
+│   └── bootstrap               # copies skeleton artifacts into a target repo
 ├── agentos/                    # Python stdlib package (validator)
 │   ├── __init__.py
 │   ├── cli.py
@@ -203,7 +218,7 @@ agent-os/
     └── ...                     # fixtures + golden cases per check
 ```
 
-## 8. Roadmap (documented, unbuilt — each has a "gate to build")
+## 8. Roadmap (documented, unbuilt - each has a "gate to build")
 
 | Module | Grade | Gate to build (what must be measured first) |
 |---|---|---|
@@ -227,7 +242,7 @@ agent-os/
 
 | v0.1 artifact | Report support |
 |---|---|
-| AGENTS.md size budget | "Evaluating AGENTS.md" — big rule files reduce success (A-) |
+| AGENTS.md size budget | "Evaluating AGENTS.md" - big rule files reduce success (A-) |
 | STATE.yaml | Durable-state schema recommendation (A-) |
 | Evidence ledger | "distinguish fact from inference"; biggest gap (A) |
 | path-policy + hooks | pre_tool_call / tool allowlist (A) |
