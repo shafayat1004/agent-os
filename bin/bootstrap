@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+import os
+import shutil
+import sys
+
+
+def bootstrap(src_templates, dest):
+    created = []
+    for dirpath, _dirs, files in os.walk(src_templates):
+        rel = os.path.relpath(dirpath, src_templates)
+        target_dir = dest if rel == "." else os.path.join(dest, rel)
+        os.makedirs(target_dir, exist_ok=True)
+        for name in files:
+            target = os.path.join(target_dir, name)
+            if os.path.exists(target):
+                print("skip existing: %s" % target)
+                continue
+            shutil.copy2(os.path.join(dirpath, name), target)
+            created.append(target)
+            print("created: %s" % target)
+    return created
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("usage: bootstrap DEST", file=sys.stderr)
+        raise SystemExit(2)
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bootstrap(os.path.join(here, "templates"), sys.argv[1])

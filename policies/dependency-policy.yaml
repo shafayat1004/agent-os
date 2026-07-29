@@ -1,0 +1,8 @@
+# Skeleton dependency policy. Populate per target repo.
+banned:
+  - name: Moq
+    reason: org rule
+  - name: AutoMapper
+    reason: org rule
+required: []
+ecosystems: [nuget]

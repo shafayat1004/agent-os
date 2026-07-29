@@ -1,0 +1,10 @@
+task_id: T-2
+risk_class: whatever
+acceptance_criteria: []
+verification_status:
+  format: pass
+  compile: pass
+  tests: pass
+  policy: pass
+  security: pass
+next_action: stop

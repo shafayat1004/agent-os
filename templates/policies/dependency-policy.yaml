@@ -1,0 +1,7 @@
+banned:
+  - name: Moq
+    reason: org rule
+  - name: AutoMapper
+    reason: org rule
+required: []
+ecosystems: [nuget]

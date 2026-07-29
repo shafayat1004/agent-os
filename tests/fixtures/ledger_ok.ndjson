@@ -1,0 +1,2 @@
+{"claim": "uses jwt", "status": "confirmed", "evidence_ref": "auth.fs:212", "source_type": "file", "verifier": "read", "hash": "abc", "ts": "2026-07-29T00:00:00Z"}
+{"claim": "cache helps", "status": "inferred", "evidence_ref": "note", "source_type": "human", "verifier": "", "hash": "", "ts": "2026-07-29T00:01:00Z"}

@@ -1,0 +1,6 @@
+skills:
+  - name: demo
+    version: one
+    owner: shafayat
+    purpose: demonstrate the manifest
+    when_to_use: in tests

@@ -1,0 +1,6 @@
+banned:
+  - name: Moq
+    reason: org rule
+  - name: AutoMapper
+    reason: org rule
+ecosystems: [nuget, npm]

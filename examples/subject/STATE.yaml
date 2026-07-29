@@ -1,0 +1,22 @@
+task_id: EGG-B
+goal: fix scaffolding so eggshell create-app makes a working modern app
+risk_class: reversible
+scope_in: [Lib*, Meta]
+scope_out: [App*, Suite*]
+acceptance_criteria:
+  - eggshell create-app produces an app that builds green
+confirmed_facts:
+  - fact: frontend is on Fable 5 with .NET 10 SDK
+    evidence_ref: subject/CLAUDE.md
+assumptions: []
+decisions: []
+failed_hypotheses: []
+open_questions: []
+changed_files: []
+verification_status:
+  format: pending
+  compile: pending
+  tests: pending
+  policy: pending
+  security: n/a
+next_action: read scaffolding templates under Meta

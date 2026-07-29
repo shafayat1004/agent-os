@@ -1,0 +1,19 @@
+task_id:
+goal:
+risk_class: reversible
+scope_in: []
+scope_out: []
+acceptance_criteria: []
+confirmed_facts: []
+assumptions: []
+decisions: []
+failed_hypotheses: []
+open_questions: []
+changed_files: []
+verification_status:
+  format: pending
+  compile: pending
+  tests: pending
+  policy: pending
+  security: pending
+next_action:
