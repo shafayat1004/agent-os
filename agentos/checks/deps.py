@@ -11,8 +11,9 @@ def check_deps(policy_path, root):
         policy = yaml_min.load(fh.read())
     banned = [b["name"] for b in policy.get("banned", []) or []]
     findings = []
-    for dirpath, _dirs, files in os.walk(root):
-        for name in files:
+    for dirpath, dirs, files in os.walk(root):
+        dirs.sort()
+        for name in sorted(files):
             if not name.endswith(_MANIFESTS) and name not in _MANIFESTS:
                 continue
             full = os.path.join(dirpath, name)

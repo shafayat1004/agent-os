@@ -13,10 +13,11 @@ def check_state(path, schema_path=None):
     findings = []
     with open(schema_path) as fh:
         schema = json.load(fh)
+    with open(path) as fh:
+        text = fh.read()
     try:
-        with open(path) as fh:
-            data = yaml_min.load(fh.read())
-    except (OSError, yaml_min.YamlError) as e:
+        data = yaml_min.load(text)
+    except yaml_min.YamlError as e:
         return CheckResult("state", grade_for("state"),
                            [Finding("error", "cannot load %s: %s" % (path, e))])
     for err in jsonschema_min.validate(data, schema):

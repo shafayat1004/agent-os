@@ -1,5 +1,6 @@
 import argparse
 import json
+import subprocess
 import sys
 
 from agentos.checks import state as state_check
@@ -95,7 +96,7 @@ def main(argv=None):
             results = _run_all(a)
         else:
             return 2
-    except FileNotFoundError as e:
+    except (FileNotFoundError, OSError, subprocess.CalledProcessError) as e:
         print("config error: %s" % e, file=sys.stderr)
         return 2
     _print(results, a.json)

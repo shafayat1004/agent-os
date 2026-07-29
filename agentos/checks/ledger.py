@@ -13,12 +13,8 @@ def check_ledger(path, schema_path=None):
     with open(schema_path) as fh:
         schema = json.load(fh)
     findings = []
-    try:
-        with open(path) as fh:
-            lines = fh.read().splitlines()
-    except OSError as e:
-        return CheckResult("ledger", grade_for("ledger"),
-                           [Finding("error", "cannot read %s: %s" % (path, e))])
+    with open(path) as fh:
+        lines = fh.read().splitlines()
     for i, line in enumerate(lines, start=1):
         if line.strip() == "":
             continue
