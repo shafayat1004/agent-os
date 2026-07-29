@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "required": ["task_id", "goal", "risk_class", "acceptance_criteria",
+               "verification_status", "next_action"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "goal": {"type": "string"},
+    "risk_class": {"enum": ["read-only", "reversible", "irreversible", "deploy"]},
+    "scope_in": {"type": "array", "items": {"type": "string"}},
+    "scope_out": {"type": "array", "items": {"type": "string"}},
+    "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
+    "confirmed_facts": {"type": "array", "items": {
+      "type": "object", "required": ["fact", "evidence_ref"],
+      "properties": {"fact": {"type": "string"},
+                     "evidence_ref": {"type": "string"}}}},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "decisions": {"type": "array", "items": {
+      "type": "object", "required": ["decision", "rationale"],
+      "properties": {"decision": {"type": "string"},
+                     "rationale": {"type": "string"}}}},
+    "failed_hypotheses": {"type": "array", "items": {
+      "type": "object", "required": ["hypothesis", "failure_signal"],
+      "properties": {"hypothesis": {"type": "string"},
+                     "failure_signal": {"type": "string"}}}},
+    "open_questions": {"type": "array", "items": {"type": "string"}},
+    "changed_files": {"type": "array", "items": {"type": "string"}},
+    "verification_status": {
+      "type": "object",
+      "required": ["format", "compile", "tests", "policy", "security"],
+      "properties": {
+        "format": {"enum": ["pass", "fail", "n/a", "pending"]},
+        "compile": {"enum": ["pass", "fail", "n/a", "pending"]},
+        "tests": {"enum": ["pass", "fail", "n/a", "pending"]},
+        "policy": {"enum": ["pass", "fail", "n/a", "pending"]},
+        "security": {"enum": ["pass", "fail", "n/a", "pending"]}
+      }
+    },
+    "next_action": {"type": "string"}
+  }
+}
