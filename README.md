@@ -1,7 +1,15 @@
 # agent-os
 
-A repository-owned, model-independent spec for agentic coding, plus a thin
-validator that checks it by machine.
+agent-os is a repository-owned, model-independent spec for agentic coding,
+plus a zero-dependency validator that checks it by machine. It exists
+because the evidence in `WHITEPAPER.md` says agent failures are workflow
+failures, not prompt failures: agents claim done without proof, hold
+context they never use, and follow rules that nothing enforces. A repo
+adopts agent-os before the agent reads any code, and gets six checkable
+artifacts, from typed task state to an append-only proof log, plus hooks
+that block a `never` path and refuse an unverified done claim. Only what
+the evidence grades strongly is built. The rest waits on `ROADMAP.md`,
+with a gate per module.
 
 Supported agents: opencode, Codex, and Cursor read `AGENTS.md` natively.
 Claude Code, Gemini CLI, and Copilot get pointer files. Enforcement ships
