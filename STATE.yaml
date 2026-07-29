@@ -29,4 +29,4 @@ verification_status:
   tests: pass
   policy: pass
   security: n/a
-next_action: commit and push the v0.2 fixes to the PR branch
+next_action: await human review and merge of PR 2
