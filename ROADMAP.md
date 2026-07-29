@@ -11,7 +11,7 @@ See `SPEC.md` for the six modules already built in v0.1.
 | Module | Grade | Gate to build |
 |---|---|---|
 | Skill promotion and deprecation pipeline | Emerging | A skill regression suite and a retrieval-frequency metric both exist |
-| Context accounting (retrieved versus used) | B+ | Instrumentation that logs retrieval and its effect on the diff exists |
+| Context accounting (retrieved versus used) | B+ | Instrumentation that logs retrieval and its effect on the diff exists; the post-tool trace (SPEC.md section 3) is the first half |
 | Workflow state-machine engine | Emerging | At least three workflows run stable as YAML the validator checks |
 | Telemetry and dashboard | Mostly custom | A metrics schema and a trace sink are chosen |
 | Knowledge or architecture graph | Weak | Repo self-analysis output stays stable enough to persist |

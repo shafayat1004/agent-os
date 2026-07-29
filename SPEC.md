@@ -1,4 +1,4 @@
-# SPEC.md - agent-os v0.2
+# SPEC.md - agent-os v0.3
 
 Status: normative. This file states the rules the validator checks.
 
@@ -68,7 +68,7 @@ lines or fewer. Each points at `AGENTS.md` and adds nothing else. This
 keeps one operative source of truth with many entry points, so the spec
 stays model-independent. The validator does not currently check these
 pointer files. The five-line limit is a convention the agent follows,
-not a rule `agentos` enforces in v0.2.
+not a rule `agentos` enforces in v0.3.
 
 ### 2.2 `STATE.yaml` (task-state schema)
 
@@ -90,10 +90,18 @@ open_questions: [string]
 changed_files: [path]
 verification_status: { format, compile, tests, policy, security }
 next_action: string
+stop_readiness: ready | blocked   # optional
 ```
 
 Each field in `verification_status` holds one of: `pass`, `fail`, `n/a`,
 `pending`.
+
+Set `stop_readiness: ready` to claim done. That is the trigger for the
+verdict gates in section 3: the stop adapters then grade
+`acceptance_criteria` and `verification_status`, and run the configured
+test command. Any other value, or an absent field, means no done claim,
+and the stop adapters check schema validity only. Mid-task stops stay
+free: an agent that pauses to ask a question is not claiming done.
 
 A compaction rule applies. When context is shortened, do not summarize away
 `acceptance_criteria`, `confirmed_facts`, `decisions`, `failed_hypotheses`,
@@ -175,9 +183,12 @@ plugin file. `agentos init` writes all three.
 |---|---|---|---|
 | git `pre-commit` (`hooks/pre-commit`) | commit | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
 | Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit | path-policy on the tool call's target path, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`; exit 1 (warn) on `ask_first` or an undeclared path |
-| Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas (`agentos hook-stop`) | exit 2 (refuse the success claim) |
+| Claude Code PostToolUse (`.claude/hooks/agentos-post-tool`) | every tool call | none; appends the tool and target to `evidence/trace.ndjson` (`agentos hook-post-tool`) | none: instrumentation, exit 0 always |
+| Claude Code PreCompact (`.claude/hooks/agentos-pre-compact`) | compaction | none; prints a reminder to refresh STATE.yaml, plus any STATE schema errors (`agentos hook-pre-compact`) | none: advisory, exit 0 always |
+| Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas; when STATE sets `stop_readiness: ready`, also the verdict gates (`agentos hook-stop`) | exit 2 (refuse the success claim) |
 | opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`; log a warning on `ask_first` |
-| opencode `session.idle` (same plugin) | session idle | STATE and ledger valid against their schemas (`agentos hook-stop`) | prompt the session to fix the artifacts before the done claim |
+| opencode `tool.execute.after` (same plugin) | every tool call | none; appends the tool and target to the trace (`agentos hook-post-tool`) | none: instrumentation, errors ignored |
+| opencode `session.idle` (same plugin) | session idle | same as the Stop adapter (`agentos hook-stop`) | prompt the session to fix the artifacts before the done claim |
 
 Claude Code and the validator use different exit-code contracts. The
 validator exits 1 on a violation. A Claude Code PreToolUse or Stop hook
@@ -190,10 +201,18 @@ pre-commit hook blocks on any nonzero exit, so `pre-commit` calls the
 plain validator subcommands.
 
 `pre-tool` and the opencode edit check do not check dependency-policy.
-`pre-commit` does not run schema validation. The stop adapters do not
-themselves cross-check a "done" claim against `verification_status`.
-"No unverified done claim" is a convention the agent follows when it
-reports success, not a check `agentos` enforces in v0.2.
+`pre-commit` does not run schema validation. The verdict gates run only
+when STATE sets `stop_readiness: ready`. Then the stop adapters refuse
+the done claim (exit 2) unless `acceptance_criteria` is non-empty and
+every `verification_status` field is `pass` or `n/a`. An adapter may
+also pass `--run-tests CMD`; the gate then runs CMD and refuses the
+claim when CMD exits nonzero. Without the flag, the verdict values stay
+self-reported. The flag is repo wiring, not a validator default: only
+the repo knows its test command.
+
+The trace file `evidence/trace.ndjson` is local instrumentation, not a
+seventh artifact. No check grades it, and it belongs in `.gitignore`.
+Its purpose is the context-accounting work in `ROADMAP.md`.
 
 Two deployment models exist. In the vendored model, the target repo
 carries its own copy of `bin/agentos` and the `agentos/` package. The
@@ -239,7 +258,17 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   the path policy. Exit 2 blocks, exit 1 warns, exit 0 allows.
 - `agentos hook-stop` serves the Claude Code Stop hook and the opencode
   idle check. It checks STATE and the ledger. Exit 2 refuses the done
-  claim, exit 0 allows it.
+  claim, exit 0 allows it. When STATE sets `stop_readiness: ready`, it
+  also grades the verdict gates: non-empty `acceptance_criteria`, every
+  `verification_status` field at `pass` or `n/a`, and the command given
+  with `--run-tests CMD`, when the adapter passes one, must exit 0.
+- `agentos hook-post-tool` serves the Claude Code PostToolUse hook and
+  the opencode `tool.execute.after` event. It appends one JSON line,
+  with timestamp, tool, and target, to the trace file (default
+  `evidence/trace.ndjson`). Exit 0 always.
+- `agentos hook-pre-compact` serves the Claude Code PreCompact hook. It
+  prints a reminder to refresh STATE.yaml before compaction, plus any
+  STATE schema errors. Exit 0 always.
 - `agentos check-path FILE...` checks one or more paths against the path
   policy with the editor-time contract: exit 2 on `never`, exit 1 on
   `ask_first` or an undeclared path, exit 0 otherwise. Harness adapters,
@@ -254,7 +283,7 @@ Exit codes:
 - `1` means at least one check found a violation.
 - `2` means a config or usage error, such as a missing file or a bad flag.
 
-## 5. Repository layout (v0.2, only what is built)
+## 5. Repository layout (v0.3, only what is built)
 
 ```
 agent-os/
@@ -269,7 +298,8 @@ agent-os/
 │   └── copilot-instructions.md # pointer at AGENTS.md (Copilot)
 ├── STATE.yaml                  # live task state for work on agent-os itself
 ├── evidence/
-│   └── ledger.ndjson           # claims with proof, for agent-os itself
+│   ├── ledger.ndjson           # claims with proof, for agent-os itself
+│   └── trace.ndjson            # local tool-call log, gitignored, not graded
 ├── .claude/
 │   ├── settings.json           # the repo's own Claude Code hook registration
 │   └── skills/
@@ -290,6 +320,8 @@ agent-os/
 │   └── subject/                # one populated instance, derived from a real repo
 ├── hooks/
 │   ├── pre-tool
+│   ├── post-tool
+│   ├── pre-compact
 │   ├── stop-check
 │   └── pre-commit
 ├── bin/
@@ -328,9 +360,9 @@ adapters are committed: `.claude/settings.json` for Claude Code and
 `agentos all` on the repo itself and on a fresh init destination, and
 both must exit 0.
 
-## 6. Non-goals for v0.2
+## 6. Non-goals for v0.3
 
-agent-os v0.2 does not build:
+agent-os v0.3 does not build:
 
 - An agent runtime, orchestrator, or model adapter.
 - A skill promotion or deprecation pipeline. v0.1 ships a manifest format

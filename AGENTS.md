@@ -32,3 +32,4 @@
 - At task start, set STATE.yaml task_id, goal, and next_action. Keep STATE.yaml current as you work.
 - Append one line to evidence/ledger.ndjson for each verified claim: the claim, the proof, the timestamp.
 - Before any done claim, run ./bin/agentos all. Every check must pass.
+- To claim done, set stop_readiness: ready in STATE.yaml. The stop hook then grades verification_status and runs the test suite.

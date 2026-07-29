@@ -17,3 +17,4 @@ verification_status:
   policy: pending
   security: pending
 next_action: ""
+stop_readiness: blocked

@@ -77,9 +77,9 @@ What happens to what you already have:
 - `STATE.yaml` and `evidence/ledger.ndjson`, the task state and the
   proof log the Stop adapters check.
 - `policies/`, `skills/index.yaml`, the rule inputs for the checks.
-- Active enforcement: a git pre-commit hook, Claude Code PreToolUse and
-  Stop hooks registered in `.claude/settings.json`, and an opencode
-  plugin in `.opencode/plugins/`.
+- Active enforcement: a git pre-commit hook, Claude Code PreToolUse,
+  PostToolUse, PreCompact, and Stop hooks registered in
+  `.claude/settings.json`, and an opencode plugin in `.opencode/plugins/`.
 
 The adapters call the agent-os checkout by absolute path, so keep the
 clone around. To vendor agent-os into your repo instead, see the

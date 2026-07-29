@@ -35,8 +35,9 @@ _POINTERS = ("CLAUDE.md", "GEMINI.md",
              os.path.join(".github", "copilot-instructions.md"))
 
 _OPENCODE_PLUGIN = """// agent-os opencode plugin (installed by `agentos init`).
-// Enforcement adapter: blocks edits to never paths and refuses done claims
-// while STATE.yaml or evidence/ledger.ndjson is invalid.
+// Enforcement adapter: blocks edits to never paths, refuses done claims
+// while STATE.yaml or evidence/ledger.ndjson is invalid, and appends a
+// trace line after each tool call.
 // Resolution: a vendored bin/agentos in this repo wins. Otherwise the
 // shared checkout recorded below is used. null means this repo is vendored.
 import { existsSync } from "node:fs"
@@ -55,8 +56,13 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
              text: result.stderr.toString() + result.stdout.toString() }
   }
   const nudged = new Map()  // sessionID -> failure fingerprint already sent
+  const pending = new Map()  // callID -> { tool, args } awaiting completion
   return {
     "tool.execute.before": async (input, output) => {
+      if (input.callID) {
+        if (pending.size > 200) pending.clear()
+        pending.set(input.callID, { tool: input.tool, args: output.args || {} })
+      }
       if (!EDIT_TOOLS.has(input.tool)) return
       const target = output.args.filePath || output.args.notebookPath
       if (!target) return
@@ -67,6 +73,18 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       if (code === 1 && text.trim()) {
         await client.app.log({ body: { service: "agent-os", level: "warn",
                                        message: text.trim() } })
+      }
+    },
+    "tool.execute.after": async (input) => {
+      const seenCall = pending.get(input.callID) || { tool: input.tool, args: {} }
+      if (input.callID) pending.delete(input.callID)
+      const target = seenCall.args.filePath || seenCall.args.notebookPath
+        || seenCall.args.command || ""
+      try {
+        await run(["hook-post-tool", "--tool", String(seenCall.tool || ""),
+                   "--target", String(target)])
+      } catch (error) {
+        // Trace only: a session is never blocked by its own log.
       }
     },
     event: async ({ event }) => {
@@ -121,8 +139,27 @@ def _stop_check(agentos_bin):
         "#!/bin/sh\n"
         "# agent-os Stop wrapper (installed by `agentos init`).\n"
         "# Refuses the done claim (exit 2) when STATE or ledger is invalid.\n"
+        "# Extra arguments pass through, for example --run-tests.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        'exec "%s" hook-stop\n' % agentos_bin)
+        'exec "%s" hook-stop "$@"\n' % agentos_bin)
+
+
+def _post_tool(agentos_bin):
+    return (
+        "#!/bin/sh\n"
+        "# agent-os PostToolUse wrapper (installed by `agentos init`).\n"
+        "# Appends the tool call to the trace log. Never blocks.\n"
+        'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
+        'exec "%s" hook-post-tool\n' % agentos_bin)
+
+
+def _pre_compact(agentos_bin):
+    return (
+        "#!/bin/sh\n"
+        "# agent-os PreCompact wrapper (installed by `agentos init`).\n"
+        "# Reminds the agent to refresh STATE.yaml. Never blocks.\n"
+        'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
+        'exec "%s" hook-pre-compact\n' % agentos_bin)
 
 
 def _write_if_absent(path, content, report, executable=False):
@@ -149,6 +186,16 @@ def _settings_snippet():
                  "hooks": [{"type": "command",
                             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-pre-tool"}]}
             ],
+            "PostToolUse": [
+                {"matcher": "*",
+                 "hooks": [{"type": "command",
+                            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-post-tool"}]}
+            ],
+            "PreCompact": [
+                {"matcher": "manual|auto",
+                 "hooks": [{"type": "command",
+                            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-pre-compact"}]}
+            ],
             "Stop": [
                 {"hooks": [{"type": "command",
                             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-stop-check"}]}
@@ -171,6 +218,10 @@ def run_init(dest, agentos_root, report=None):
                      _pre_tool(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-stop-check"),
                      _stop_check(agentos_bin), report, executable=True)
+    _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-post-tool"),
+                     _post_tool(agentos_bin), report, executable=True)
+    _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-pre-compact"),
+                     _pre_compact(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".opencode", "plugins", "agentos.js"),
                      _opencode_plugin(agentos_bin), report)
     settings_written = _write_if_absent(

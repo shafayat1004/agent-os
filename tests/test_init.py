@@ -33,6 +33,20 @@ class TestInit(unittest.TestCase):
             with open(os.path.join(temp_dir, ".claude", "hooks",
                                    "agentos-stop-check")) as hook_file:
                 self.assertIn("hook-stop", hook_file.read())
+            with open(os.path.join(temp_dir, ".claude", "hooks",
+                                   "agentos-post-tool")) as hook_file:
+                self.assertIn("hook-post-tool", hook_file.read())
+            with open(os.path.join(temp_dir, ".claude", "hooks",
+                                   "agentos-pre-compact")) as hook_file:
+                self.assertIn("hook-pre-compact", hook_file.read())
+
+    def test_trace_and_compact_wrappers_executable(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            for wrapper_name in ("agentos-post-tool", "agentos-pre-compact"):
+                path = os.path.join(temp_dir, ".claude", "hooks", wrapper_name)
+                self.assertTrue(os.path.exists(path), wrapper_name)
+                self.assertTrue(os.access(path, os.X_OK), wrapper_name)
 
     def test_pointer_names_agents_md(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -59,6 +73,7 @@ class TestInit(unittest.TestCase):
             with open(plugin_path) as plugin_file:
                 body = plugin_file.read()
             self.assertIn("tool.execute.before", body)
+            self.assertIn("tool.execute.after", body)
             self.assertIn("check-path", body)
             self.assertIn("session.idle", body)
             self.assertIn(json.dumps(summary["agentos_bin"]), body)
@@ -119,6 +134,8 @@ class TestInit(unittest.TestCase):
             summary = run_init(temp_dir, _ROOT)
             parsed_settings = json.loads(summary["settings_snippet"])
             self.assertIn("PreToolUse", parsed_settings["hooks"])
+            self.assertIn("PostToolUse", parsed_settings["hooks"])
+            self.assertIn("PreCompact", parsed_settings["hooks"])
             self.assertIn("Stop", parsed_settings["hooks"])
 
     def test_settings_json_written_when_absent(self):

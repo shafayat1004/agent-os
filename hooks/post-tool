@@ -1,0 +1,7 @@
+#!/bin/sh
+# agent-os post-tool hook: append the tool call to evidence/trace.ndjson.
+# Wire as a PostToolUse hook. Reads the tool call JSON on stdin. This is
+# instrumentation, not a gate: it always exits 0.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+exec "$ROOT/bin/agentos" hook-post-tool

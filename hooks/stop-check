@@ -1,6 +1,8 @@
 #!/bin/sh
 # agent-os stop-check: refuse a done claim (exit 2) when STATE or the
-# ledger is invalid. Wire as a Stop hook.
+# ledger is invalid, or when stop_readiness is ready but the proof gates
+# fail. Extra arguments pass through to hook-stop, for example
+# --run-tests 'python3 -m unittest discover -s tests'. Wire as a Stop hook.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$ROOT" || exit 0
-exec "$ROOT/bin/agentos" hook-stop
+exec "$ROOT/bin/agentos" hook-stop "$@"

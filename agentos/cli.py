@@ -75,6 +75,15 @@ def main(argv=None):
     command_parser = subparsers.add_parser("hook-stop")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
+    command_parser.add_argument("--run-tests", default=None,
+                                help="test command the verdict gate runs when "
+                                     "STATE sets stop_readiness to ready")
+    command_parser = subparsers.add_parser("hook-post-tool")
+    command_parser.add_argument("--tool", default=None)
+    command_parser.add_argument("--target", default=None)
+    command_parser.add_argument("--trace", default="evidence/trace.ndjson")
+    command_parser = subparsers.add_parser("hook-pre-compact")
+    command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser = subparsers.add_parser("check-path")
     command_parser.add_argument("paths", nargs="+")
     command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
@@ -101,7 +110,13 @@ def main(argv=None):
         return hook_commands.run_pre_tool(sys.stdin.read(), args.path_policy,
                                           os.getcwd())
     if args.cmd == "hook-stop":
-        return hook_commands.run_stop(args.state_file, args.ledger_file)
+        return hook_commands.run_stop(args.state_file, args.ledger_file,
+                                      run_tests=args.run_tests)
+    if args.cmd == "hook-post-tool":
+        return hook_commands.run_post_tool(sys.stdin.read(), args.trace,
+                                           tool=args.tool, target=args.target)
+    if args.cmd == "hook-pre-compact":
+        return hook_commands.run_pre_compact(args.state_file)
     if args.cmd == "check-path":
         return hook_commands.run_check_path(args.paths, args.path_policy,
                                             os.getcwd())
@@ -113,8 +128,8 @@ def main(argv=None):
             print("config error: %s" % error, file=sys.stderr)
             return 2
         if summary["settings_written"]:
-            print("\nWrote .claude/settings.json with the PreToolUse and Stop"
-                  " hooks.")
+            print("\nWrote .claude/settings.json with the PreToolUse,"
+                  " PostToolUse, PreCompact, and Stop hooks.")
         else:
             print("\n.claude/settings.json exists; merge these hooks into it:\n")
             print(summary["settings_snippet"])
