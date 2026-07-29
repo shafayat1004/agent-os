@@ -1,4 +1,4 @@
-# SPEC.md - agent-os v0.1
+# SPEC.md - agent-os v0.2
 
 Status: normative. This file states the rules the validator checks.
 
@@ -43,6 +43,10 @@ is its evidence grade from `WHITEPAPER.md`.
 4. Approval gates
 5. Scope
 6. Conventions (pointer)
+
+Extra sections may follow the six required ones. The skeleton template adds
+an operating procedure section that tells the agent how to maintain the
+other artifacts.
 
 Narrative belongs in linked docs, not in `AGENTS.md`.
 
@@ -115,6 +119,11 @@ ask_first: [glob]     # these paths need explicit approval first
 never: [glob]         # these paths are a hard block
 ```
 
+The validator checks `never` first, then `ask_first`, then `may_edit`. A
+path no glob matches is reported as outside declared scope, a warning.
+The skeleton template ships `may_edit: ["*"]`, so a new repo starts open
+and the warnings start to mean something once the lists fill in.
+
 `examples/subject/policies/path-policy.yaml` derives this from a real
 repo's rules: library and third-party code as `may_edit`, app and suite
 code as `ask_first`, and generated or render files as `never`.
@@ -155,15 +164,32 @@ hook.
 
 | Hook | Checks | Fail behavior |
 |---|---|---|
-| `pre-tool` | path-policy on the staged diff (`agentos diff --staged`) | block on `never`, warn on `ask_first` |
-| `pre-commit` | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit |
-| `stop-check` | STATE and ledger valid against their schemas (`agentos state`, `agentos ledger`) | refuse the success claim |
+| `pre-tool` | path-policy on the tool call's target path, read from the hook's stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`; exit 1 (warn) on `ask_first` or an undeclared path |
+| `pre-commit` | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
+| `stop-check` | STATE and ledger valid against their schemas (`agentos hook-stop`) | exit 2 (refuse the success claim) |
+
+Claude Code and the validator use different exit-code contracts. The
+validator exits 1 on a violation. A Claude Code PreToolUse or Stop hook
+blocks only on exit 2; any other nonzero code is a non-blocking warning.
+The `hook-pre-tool` and `hook-stop` subcommands do this mapping. Both
+fail open with exit 0 on a config error: a guardrail that cannot load its
+inputs must not wedge the editor. A git pre-commit hook blocks on any
+nonzero exit, so `pre-commit` calls the plain validator subcommands.
 
 `pre-tool` does not check dependency-policy. `pre-commit` does not run
 schema validation. `stop-check` does not itself cross-check a "done" claim
 against `verification_status`. "No unverified done claim" is a convention
 the agent follows when it reports success, not a check `agentos` enforces
-in v0.1.
+in v0.2.
+
+Two deployment models exist. In the vendored model, the target repo
+carries its own copy of `bin/agentos` and the `agentos/` package, and the
+reference hooks under `hooks/` find them with `git rev-parse`. agent-os
+uses this model on itself. In the init model, `agentos init` writes hooks
+that point at one shared agent-os checkout by absolute path; that checkout
+becomes a permanent dependency of every repo it wires. Both models use
+`$CLAUDE_PROJECT_DIR` paths in `.claude/settings.json`, so the settings
+file is safe to commit.
 
 ## 4. Validator (`agentos`)
 
@@ -190,8 +216,14 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
 - `agentos init [DEST]` wires a repo for use. It copies the skeleton
   artifacts, writes a `CLAUDE.md` pointer at `AGENTS.md`, installs a git
   `pre-commit` hook, writes the Claude Code hook wrappers under
-  `.claude/hooks/`, and prints a settings snippet to paste. It never
-  overwrites a file that exists.
+  `.claude/hooks/`, and writes `.claude/settings.json` when that file
+  does not exist. When it does exist, init prints a snippet to merge. It
+  never overwrites a file that exists.
+- `agentos hook-pre-tool` serves the Claude Code PreToolUse hook. It
+  reads the tool call JSON on stdin and checks the target path against
+  the path policy. Exit 2 blocks, exit 1 warns, exit 0 allows.
+- `agentos hook-stop` serves the Claude Code Stop hook. It checks STATE
+  and the ledger. Exit 2 refuses the done claim, exit 0 allows it.
 
 Each check prints its evidence grade next to its result. Pass `--json` for
 machine-readable output, meant for CI.
@@ -202,7 +234,7 @@ Exit codes:
 - `1` means at least one check found a violation.
 - `2` means a config or usage error, such as a missing file or a bad flag.
 
-## 5. Repository layout (v0.1, only what is built)
+## 5. Repository layout (v0.2, only what is built)
 
 ```
 agent-os/
@@ -210,16 +242,24 @@ agent-os/
 ├── WHITEPAPER.md
 ├── SPEC.md
 ├── ROADMAP.md
+├── AGENTS.md                   # operative rules for work on agent-os itself
+├── CLAUDE.md                   # pointer at AGENTS.md
+├── STATE.yaml                  # live task state for work on agent-os itself
+├── evidence/
+│   └── ledger.ndjson           # claims with proof, for agent-os itself
+├── .claude/
+│   ├── settings.json           # the repo's own Claude Code hook registration
+│   └── skills/
 ├── schemas/
 │   ├── task-state.schema.json
 │   ├── evidence.schema.json
 │   └── skill.schema.json
 ├── policies/
-│   ├── path-policy.yaml
+│   ├── path-policy.yaml        # policy for the agent-os repo itself
 │   └── dependency-policy.yaml
 ├── skills/
 │   └── index.yaml
-├── templates/                  # skeleton copies for bin/bootstrap
+├── templates/                  # skeleton copies for bin/bootstrap and agentos init
 ├── examples/
 │   └── subject/                # one populated instance, derived from a real repo
 ├── hooks/
@@ -231,7 +271,14 @@ agent-os/
 │   └── bootstrap               # copies skeleton artifacts into a target repo
 ├── agentos/                    # Python stdlib package (the validator)
 │   ├── cli.py
+│   ├── hooks.py                # Claude Code hook subcommands, exit-code mapping
+│   ├── initcmd.py              # agentos init
+│   ├── bootstrap.py
+│   ├── yaml_min.py
 │   ├── jsonschema_min.py
+│   ├── pathmatch.py
+│   ├── gitutil.py
+│   ├── result.py
 │   ├── checks/
 │   │   ├── state.py
 │   │   ├── ledger.py
@@ -243,9 +290,19 @@ agent-os/
 └── tests/
 ```
 
-## 6. Non-goals for v0.1
+### 5.1 Self-governance
 
-agent-os v0.1 does not build:
+agent-os governs its own codebase with the same artifacts it defines. The
+repo root carries a populated `AGENTS.md`, `STATE.yaml`, evidence ledger,
+policies, skill index, and `.claude/settings.json`, and the reference
+hooks under `hooks/` run against the repo's own `bin/agentos`.
+`tests/test_self_governance.py` is the self-compile gate: it runs
+`agentos all` on the repo itself and on a fresh init destination, and
+both must exit 0.
+
+## 6. Non-goals for v0.2
+
+agent-os v0.2 does not build:
 
 - An agent runtime, orchestrator, or model adapter.
 - A skill promotion or deprecation pipeline. v0.1 ships a manifest format

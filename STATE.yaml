@@ -1,0 +1,32 @@
+task_id: v0.2-pr2-review-fixes
+goal: Make init produce a working greenfield starter, make the Claude Code hooks enforce, and self-govern the agent-os repo
+risk_class: reversible
+scope_in: [agentos, tests, templates, hooks, policies, evidence, skills, SPEC.md, README.md, AGENTS.md, CLAUDE.md, .claude]
+scope_out: [examples]
+acceptance_criteria:
+  - agentos all exits 0 on a fresh init destination
+  - hook-pre-tool blocks a never-path edit with exit 2
+  - agentos all exits 0 on the agent-os repo itself
+confirmed_facts:
+  - fact: fresh init failed agentos all because the STATE template shipped null strings
+    evidence_ref: tests/test_self_governance.py
+  - fact: Claude Code PreToolUse and Stop hooks block only on exit code 2
+    evidence_ref: agentos/hooks.py
+  - fact: the pre-tool wrapper checked the staged diff, not the agent's edit target
+    evidence_ref: tests/test_hook_commands.py
+assumptions: []
+decisions:
+  - decision: hook subcommands exit 2 on a violation and fail open on a config error
+    rationale: a guardrail that cannot load its inputs must not wedge the editor
+  - decision: init writes .claude/settings.json only when the file is absent
+    rationale: non-destructive wiring for greenfield, a merge snippet otherwise
+failed_hypotheses: []
+open_questions: []
+changed_files: []
+verification_status:
+  format: n/a
+  compile: n/a
+  tests: pass
+  policy: pass
+  security: n/a
+next_action: commit and push the v0.2 fixes to the PR branch

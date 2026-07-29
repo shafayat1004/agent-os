@@ -1,5 +1,7 @@
 #!/bin/sh
-# agent-os pre-tool hook (v0.1): proxy enforcement via staged-diff policy check.
-# Wire as a PreToolUse hook. Blocks when a staged path violates path policy.
+# agent-os pre-tool hook: check the agent's edit target against path policy.
+# Wire as a PreToolUse hook. Reads the tool call JSON on stdin. Blocks
+# (exit 2) on a never match, warns (exit 1) on ask_first, allows otherwise.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-"$ROOT/bin/agentos" diff --staged
+cd "$ROOT" || exit 0
+exec "$ROOT/bin/agentos" hook-pre-tool

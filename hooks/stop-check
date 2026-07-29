@@ -1,5 +1,6 @@
 #!/bin/sh
-# agent-os stop-check: refuse a done claim without valid STATE and ledger.
-ROOT="$(git rev-parse --show-toplevel)"
-"$ROOT/bin/agentos" state || exit 1
-"$ROOT/bin/agentos" ledger || exit 1
+# agent-os stop-check: refuse a done claim (exit 2) when STATE or the
+# ledger is invalid. Wire as a Stop hook.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+exec "$ROOT/bin/agentos" hook-stop

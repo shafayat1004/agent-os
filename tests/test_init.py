@@ -24,6 +24,16 @@ class TestInit(unittest.TestCase):
             self.assertTrue(os.path.exists(pre_tool_hook))
             self.assertTrue(os.access(pre_tool_hook, os.X_OK))
 
+    def test_wrappers_call_hook_subcommands(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            with open(os.path.join(temp_dir, ".claude", "hooks",
+                                   "agentos-pre-tool")) as hook_file:
+                self.assertIn("hook-pre-tool", hook_file.read())
+            with open(os.path.join(temp_dir, ".claude", "hooks",
+                                   "agentos-stop-check")) as hook_file:
+                self.assertIn("hook-stop", hook_file.read())
+
     def test_pointer_names_agents_md(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             run_init(temp_dir, _ROOT)
@@ -62,6 +72,28 @@ class TestInit(unittest.TestCase):
             parsed_settings = json.loads(summary["settings_snippet"])
             self.assertIn("PreToolUse", parsed_settings["hooks"])
             self.assertIn("Stop", parsed_settings["hooks"])
+
+    def test_settings_json_written_when_absent(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            summary = run_init(temp_dir, _ROOT)
+            self.assertTrue(summary["settings_written"])
+            settings_path = os.path.join(temp_dir, ".claude", "settings.json")
+            with open(settings_path) as settings_file:
+                written = json.load(settings_file)
+            self.assertIn("PreToolUse", written["hooks"])
+            pre_tool_command = written["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+            self.assertIn("$CLAUDE_PROJECT_DIR", pre_tool_command)
+
+    def test_settings_json_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.makedirs(os.path.join(temp_dir, ".claude"))
+            settings_path = os.path.join(temp_dir, ".claude", "settings.json")
+            with open(settings_path, "w") as settings_file:
+                settings_file.write('{"model": "opus"}')
+            summary = run_init(temp_dir, _ROOT)
+            self.assertFalse(summary["settings_written"])
+            with open(settings_path) as settings_file:
+                self.assertEqual(settings_file.read(), '{"model": "opus"}')
 
     def test_dest_is_file_errors(self):
         with tempfile.TemporaryDirectory() as temp_dir:

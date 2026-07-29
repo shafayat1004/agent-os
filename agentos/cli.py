@@ -11,6 +11,7 @@ from agentos.checks import deps as deps_check
 from agentos.checks import skills as skills_check
 from agentos.checks import rules as rules_check
 from agentos import gitutil
+from agentos import hooks as hook_commands
 from agentos.initcmd import run_init
 from agentos.yaml_min import YamlError
 
@@ -69,6 +70,11 @@ def main(argv=None):
     command_parser.add_argument("rules_file", nargs="?", default="AGENTS.md")
     command_parser = subparsers.add_parser("init")
     command_parser.add_argument("dest", nargs="?", default=".")
+    command_parser = subparsers.add_parser("hook-pre-tool")
+    command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
+    command_parser = subparsers.add_parser("hook-stop")
+    command_parser.add_argument("--state-file", default="STATE.yaml")
+    command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
     command_parser = subparsers.add_parser("all")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
@@ -88,6 +94,11 @@ def main(argv=None):
     if args.cmd is None:
         parser.print_help()
         return 2
+    if args.cmd == "hook-pre-tool":
+        return hook_commands.run_pre_tool(sys.stdin.read(), args.path_policy,
+                                          os.getcwd())
+    if args.cmd == "hook-stop":
+        return hook_commands.run_stop(args.state_file, args.ledger_file)
     if args.cmd == "init":
         try:
             summary = run_init(args.dest, _ROOT,
@@ -95,9 +106,13 @@ def main(argv=None):
         except OSError as error:
             print("config error: %s" % error, file=sys.stderr)
             return 2
-        print("\nNext: register these Claude Code hooks in .claude/settings.json")
-        print("(the git pre-commit hook is already active):\n")
-        print(summary["settings_snippet"])
+        if summary["settings_written"]:
+            print("\nWrote .claude/settings.json with the PreToolUse and Stop"
+                  " hooks. The git pre-commit hook is already active.")
+        else:
+            print("\n.claude/settings.json exists; merge these hooks into it")
+            print("(the git pre-commit hook is already active):\n")
+            print(summary["settings_snippet"])
         return 0
     try:
         if args.cmd == "state":

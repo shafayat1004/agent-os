@@ -10,7 +10,8 @@ overwritten):
   1. copy the skeleton templates (via bootstrap)
   2. write a CLAUDE.md pointer at AGENTS.md
   3. install a git pre-commit hook that runs the validator
-  4. write Claude Code hook wrappers and print the settings snippet to paste
+  4. write Claude Code hook wrappers plus .claude/settings.json when that
+     file does not exist (when it does, print a snippet to merge)
 """
 import json
 import os
@@ -34,17 +35,18 @@ def _pre_tool(agentos_bin):
     return (
         "#!/bin/sh\n"
         "# agent-os PreToolUse wrapper (installed by `agentos init`).\n"
+        "# Blocks (exit 2) when the edit target matches a never rule.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        'exec "%s" diff --staged\n' % agentos_bin)
+        'exec "%s" hook-pre-tool\n' % agentos_bin)
 
 
 def _stop_check(agentos_bin):
     return (
         "#!/bin/sh\n"
         "# agent-os Stop wrapper (installed by `agentos init`).\n"
+        "# Refuses the done claim (exit 2) when STATE or ledger is invalid.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        '"%s" state || exit 1\n'
-        'exec "%s" ledger\n' % (agentos_bin, agentos_bin))
+        'exec "%s" hook-stop\n' % agentos_bin)
 
 
 def _write_if_absent(path, content, report, executable=False):
@@ -61,17 +63,19 @@ def _write_if_absent(path, content, report, executable=False):
     return True
 
 
-def _settings_snippet(dest):
-    pre_tool = os.path.join(dest, ".claude", "hooks", "agentos-pre-tool")
-    stop = os.path.join(dest, ".claude", "hooks", "agentos-stop-check")
+def _settings_snippet():
+    # $CLAUDE_PROJECT_DIR keeps the settings file portable, so a repo can
+    # commit it and every clone resolves the wrappers to its own checkout.
     return json.dumps({
         "hooks": {
             "PreToolUse": [
                 {"matcher": "Edit|Write|MultiEdit",
-                 "hooks": [{"type": "command", "command": pre_tool}]}
+                 "hooks": [{"type": "command",
+                            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-pre-tool"}]}
             ],
             "Stop": [
-                {"hooks": [{"type": "command", "command": stop}]}
+                {"hooks": [{"type": "command",
+                            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agentos-stop-check"}]}
             ],
         }
     }, indent=2)
@@ -90,6 +94,9 @@ def run_init(dest, agentos_root, report=None):
                      _pre_tool(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-stop-check"),
                      _stop_check(agentos_bin), report, executable=True)
+    settings_written = _write_if_absent(
+        os.path.join(dest, ".claude", "settings.json"),
+        _settings_snippet() + "\n", report)
 
     git_hooks = os.path.join(dest, ".git", "hooks")
     if os.path.isdir(git_hooks):
@@ -99,4 +106,5 @@ def run_init(dest, agentos_root, report=None):
         report("no .git, skipped pre-commit", git_hooks)
 
     return {"dest": dest, "agentos_bin": agentos_bin,
-            "settings_snippet": _settings_snippet(dest)}
+            "settings_snippet": _settings_snippet(),
+            "settings_written": settings_written}

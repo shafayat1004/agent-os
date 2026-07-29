@@ -18,14 +18,21 @@ For a new repo, wire everything in one step:
 ```
 
 `init` copies the skeleton artifacts, writes a `CLAUDE.md` pointer at
-`AGENTS.md`, installs a git `pre-commit` hook, and writes the Claude Code
-hook wrappers. It then prints a settings snippet to paste into
-`.claude/settings.json`. `init` never overwrites a file that exists, so it
-is safe to run again.
+`AGENTS.md`, installs a git `pre-commit` hook, writes the Claude Code
+hook wrappers, and writes `.claude/settings.json` when that file does
+not exist (otherwise it prints a snippet to merge). `init` never
+overwrites a file that exists, so it is safe to run again.
 
-The folder alone does not make an agent obey the rules. The agent reads the
-rules only when `CLAUDE.md` points at `AGENTS.md`, and a violation is
-blocked only when the hooks are active. `init` does both.
+The folder alone does not make an agent obey the rules. The agent reads
+the rules only when `CLAUDE.md` points at `AGENTS.md`, and a violation
+is blocked only when the hooks are active. `init` does both. The Claude
+Code hooks exit 2 on a violation, the one code Claude Code blocks on, so
+a `never` path stops the edit and an invalid `STATE.yaml` stops the done
+claim.
+
+agent-os runs on its own rules. This repo carries the same six
+artifacts, and `./bin/agentos all` passes here.
+`tests/test_self_governance.py` keeps that true.
 
 To copy only the skeleton artifacts, without the wiring:
 
@@ -44,6 +51,11 @@ Run the validator against your repo's files:
 ./bin/agentos rules AGENTS.md
 ./bin/agentos all
 ```
+
+Two more subcommands serve the Claude Code hooks and are not run by
+hand: `hook-pre-tool` reads a tool call as JSON on stdin and exits 2 to
+block a `never` path, and `hook-stop` exits 2 to refuse a done claim
+when `STATE.yaml` or the ledger is invalid.
 
 Put `--json` before the subcommand for machine-readable output, for
 example `./bin/agentos --json state STATE.yaml`. Exit code `0` means every
