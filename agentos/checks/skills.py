@@ -10,27 +10,27 @@ _DEFAULT_SCHEMA = os.path.join(_ROOT, "schemas", "skill.schema.json")
 
 def check_skills(index_path, skills_dir, schema_path=None):
     schema_path = schema_path or _DEFAULT_SCHEMA
-    with open(schema_path) as fh:
-        schema = json.load(fh)
-    with open(index_path) as fh:
-        text = fh.read()
+    with open(schema_path) as schema_file:
+        schema = json.load(schema_file)
+    with open(index_path) as index_file:
+        text = index_file.read()
     try:
         index = yaml_min.load(text) or {}
-    except yaml_min.YamlError as e:
+    except yaml_min.YamlError as error:
         return CheckResult("skills", grade_for("skills"),
-                           [Finding("error", "cannot load %s: %s" % (index_path, e))])
+                           [Finding("error", "cannot load %s: %s" % (index_path, error))])
     entries = index.get("skills", []) or []
     findings = []
-    names = set()
-    for i, entry in enumerate(entries):
-        for err in jsonschema_min.validate(entry, schema):
-            findings.append(Finding("error", "skills[%d]: %s" % (i, err)))
+    indexed_names = set()
+    for entry_index, entry in enumerate(entries):
+        for error in jsonschema_min.validate(entry, schema):
+            findings.append(Finding("error", "skills[%d]: %s" % (entry_index, error)))
         if isinstance(entry, dict) and "name" in entry:
-            names.add(entry["name"])
+            indexed_names.add(entry["name"])
     if os.path.isdir(skills_dir):
-        for sub in sorted(os.listdir(skills_dir)):
-            if os.path.isfile(os.path.join(skills_dir, sub, "SKILL.md")):
-                if sub not in names:
+        for skill_dir in sorted(os.listdir(skills_dir)):
+            if os.path.isfile(os.path.join(skills_dir, skill_dir, "SKILL.md")):
+                if skill_dir not in indexed_names:
                     findings.append(
-                        Finding("warn", "skill '%s' has no index entry" % sub))
+                        Finding("warn", "skill '%s' has no index entry" % skill_dir))
     return CheckResult("skills", grade_for("skills"), findings)

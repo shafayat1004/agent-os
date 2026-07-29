@@ -6,41 +6,42 @@ _REQUIRED = ["Commands", "Invariants", "Forbidden", "Approval gates", "Scope",
 
 
 def _headings(text):
-    out = []
-    for ln in text.splitlines():
-        s = ln.strip()
-        if s.startswith("## "):
-            out.append(s[3:].strip())
-    return out
+    headings = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            headings.append(stripped[3:].strip())
+    return headings
 
 
 def check_rules(path, soft=150, hard=250):
-    with open(path) as fh:
-        text = fh.read()
-    lines = [ln for ln in text.splitlines() if ln.strip()]
+    with open(path) as rules_file:
+        text = rules_file.read()
+    nonblank_lines = [line for line in text.splitlines() if line.strip()]
     findings = []
-    n = len(lines)
-    if n > hard:
+    line_count = len(nonblank_lines)
+    if line_count > hard:
         findings.append(Finding("error", "rule file has %d lines, over hard cap %d"
-                                % (n, hard)))
-    elif n > soft:
+                                % (line_count, hard)))
+    elif line_count > soft:
         findings.append(Finding("warn", "rule file has %d lines, over soft cap %d"
-                                % (n, soft)))
+                                % (line_count, soft)))
     # Match required sections against '##' headings only, so a section name in
     # body text cannot count as present. A heading may extend the name (for
     # example "Conventions (pointer)"), so match on prefix.
-    heads = [h.lower() for h in _headings(text)]
-    positions = {}
+    heading_texts = [heading.lower() for heading in _headings(text)]
+    section_positions = {}
     for section in _REQUIRED:
-        sl = section.lower()
-        pos = next((i for i, h in enumerate(heads)
-                    if h == sl or h.startswith(sl + " ")), None)
-        if pos is None:
+        section_lower = section.lower()
+        position = next((index for index, heading in enumerate(heading_texts)
+                         if heading == section_lower
+                         or heading.startswith(section_lower + " ")), None)
+        if position is None:
             findings.append(Finding("warn", "missing section '%s'" % section))
         else:
-            positions[section] = pos
-    present = [s for s in _REQUIRED if s in positions]
-    if present != sorted(present, key=positions.get):
+            section_positions[section] = position
+    present_sections = [section for section in _REQUIRED if section in section_positions]
+    if present_sections != sorted(present_sections, key=section_positions.get):
         findings.append(Finding("warn", "sections out of required order: expected %s"
                                 % ", ".join(_REQUIRED)))
     return CheckResult("rules", grade_for("rules"), findings)

@@ -52,8 +52,8 @@ def _write_if_absent(path, content, report, executable=False):
         report("skip existing", path)
         return False
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w") as fh:
-        fh.write(content)
+    with open(path, "w") as output_file:
+        output_file.write(content)
     if executable:
         mode = os.stat(path).st_mode
         os.chmod(path, mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)

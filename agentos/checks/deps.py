@@ -18,24 +18,24 @@ _DEFAULT_IGNORE = (
 
 
 def check_deps(policy_path, root):
-    with open(policy_path) as fh:
-        policy = yaml_min.load(fh.read())
-    banned = [b["name"] for b in policy.get("banned", []) or []]
-    ignore = set(_DEFAULT_IGNORE) | set(policy.get("ignore", []) or [])
+    with open(policy_path) as policy_file:
+        policy = yaml_min.load(policy_file.read())
+    banned_packages = [entry["name"] for entry in policy.get("banned", []) or []]
+    ignored_dirs = set(_DEFAULT_IGNORE) | set(policy.get("ignore", []) or [])
     findings = []
-    for dirpath, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in ignore)
+    for dirpath, subdirs, files in os.walk(root):
+        subdirs[:] = sorted(name for name in subdirs if name not in ignored_dirs)
         for name in sorted(files):
-            if not name.endswith(_MANIFESTS) and name not in _MANIFESTS:
+            if not name.endswith(_MANIFESTS):
                 continue
-            full = os.path.join(dirpath, name)
+            manifest_path = os.path.join(dirpath, name)
             try:
-                with open(full, encoding="utf-8", errors="replace") as fh:
-                    text = fh.read().lower()
+                with open(manifest_path, encoding="utf-8", errors="replace") as manifest:
+                    contents = manifest.read().lower()
             except OSError:
                 continue
-            for pkg in banned:
-                if pkg.lower() in text:
-                    findings.append(
-                        Finding("error", "%s: banned dependency '%s'" % (full, pkg)))
+            for package in banned_packages:
+                if package.lower() in contents:
+                    findings.append(Finding(
+                        "error", "%s: banned dependency '%s'" % (manifest_path, package)))
     return CheckResult("deps", grade_for("deps"), findings)
