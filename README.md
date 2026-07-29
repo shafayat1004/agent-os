@@ -11,24 +11,85 @@ design choices.
 
 ## Quick start
 
-For a new repo, wire everything in one step:
+You need Python 3.8 or later. There is no install step and no dependency
+to fetch.
 
 ```bash
-./bin/agentos init /path/to/target-repo
+git clone https://github.com/shafayat1004/agent-os.git
 ```
 
-`init` copies the skeleton artifacts, writes a `CLAUDE.md` pointer at
-`AGENTS.md`, installs a git `pre-commit` hook, writes the Claude Code
-hook wrappers, and writes `.claude/settings.json` when that file does
-not exist (otherwise it prints a snippet to merge). `init` never
-overwrites a file that exists, so it is safe to run again.
+### Set up a new codebase
+
+One command wires everything:
+
+```bash
+cd your-repo
+/path/to/agent-os/bin/agentos init
+```
+
+That is the whole setup. The git pre-commit hook and the Claude Code
+hooks are active right away: a `never` path blocks the edit, an invalid
+`STATE.yaml` blocks the done claim. Then, when you have a minute:
+
+1. Fill in the `Commands` section of `AGENTS.md` (build, test).
+2. Narrow `policies/path-policy.yaml` when some paths need approval.
+3. Commit the new files, so your team and every agent share them.
+
+### Set up an existing codebase
+
+The same command, same safety: `init` never overwrites a file that
+exists, and it is safe to run again.
+
+```bash
+cd your-repo
+/path/to/agent-os/bin/agentos init
+```
+
+What happens to what you already have:
+
+- An existing `CLAUDE.md` or `AGENTS.md` stays as it is. If your rules
+  live in `CLAUDE.md` today, move them into the `AGENTS.md` sections and
+  let `CLAUDE.md` become the pointer. One rule file, many entry points.
+- An existing `.claude/settings.json` stays as it is. `init` prints a
+  hook snippet to merge into it.
+- An existing git `pre-commit` hook stays as it is. To merge by hand,
+  add these two lines to it:
+
+  ```sh
+  "/path/to/agent-os/bin/agentos" diff --staged || exit 1
+  "/path/to/agent-os/bin/agentos" deps || exit 1
+  ```
+- Not a git repo yet: everything works except the pre-commit hook,
+  which `init` skips. Run `git init` and run `agentos init` again to
+  get it.
+
+### What `init` gives you
+
+- `AGENTS.md`, the operative rule file, plus a `CLAUDE.md` pointer at
+  it. The agent reads its rules from here.
+- `STATE.yaml` and `evidence/ledger.ndjson`, the task state and the
+  proof log the Stop hook checks.
+- `policies/`, `skills/index.yaml`, the rule inputs for the checks.
+- Active enforcement: a git pre-commit hook and Claude Code PreToolUse
+  and Stop hooks, registered in `.claude/settings.json`.
+
+The hooks call the agent-os checkout by absolute path, so keep the
+clone around. To vendor agent-os into your repo instead, see the
+deployment models in `SPEC.md` section 3.
+
+### Prove it works
+
+```bash
+/path/to/agent-os/bin/agentos all
+```
+
+Exit code `0` means every check passed. Exit code `1` means a check
+found a violation. Exit code `2` means a config or usage error.
 
 The folder alone does not make an agent obey the rules. The agent reads
 the rules only when `CLAUDE.md` points at `AGENTS.md`, and a violation
 is blocked only when the hooks are active. `init` does both. The Claude
-Code hooks exit 2 on a violation, the one code Claude Code blocks on, so
-a `never` path stops the edit and an invalid `STATE.yaml` stops the done
-claim.
+Code hooks exit 2 on a violation, the one code Claude Code blocks on.
 
 agent-os runs on its own rules. This repo carries the same six
 artifacts, and `./bin/agentos all` passes here.
@@ -37,19 +98,18 @@ artifacts, and `./bin/agentos all` passes here.
 To copy only the skeleton artifacts, without the wiring:
 
 ```bash
-./bin/bootstrap /path/to/target-repo
+/path/to/agent-os/bin/bootstrap /path/to/target-repo
 ```
 
-Run the validator against your repo's files:
+Run single checks against your repo's files:
 
 ```bash
-./bin/agentos state STATE.yaml
-./bin/agentos ledger evidence/ledger.ndjson
-./bin/agentos diff --staged
-./bin/agentos deps
-./bin/agentos skills
-./bin/agentos rules AGENTS.md
-./bin/agentos all
+/path/to/agent-os/bin/agentos state STATE.yaml
+/path/to/agent-os/bin/agentos ledger evidence/ledger.ndjson
+/path/to/agent-os/bin/agentos diff --staged
+/path/to/agent-os/bin/agentos deps
+/path/to/agent-os/bin/agentos skills
+/path/to/agent-os/bin/agentos rules AGENTS.md
 ```
 
 Two more subcommands serve the Claude Code hooks and are not run by
@@ -58,11 +118,7 @@ block a `never` path, and `hook-stop` exits 2 to refuse a done claim
 when `STATE.yaml` or the ledger is invalid.
 
 Put `--json` before the subcommand for machine-readable output, for
-example `./bin/agentos --json state STATE.yaml`. Exit code `0` means every
-check passed. Exit code `1` means a check found a violation. Exit code `2`
-means a config or usage error.
-
-`agentos` needs Python 3.8 or later and no third-party packages.
+example `./bin/agentos --json state STATE.yaml`.
 
 See `examples/subject/` for one populated instance, derived from a real
 repo.
