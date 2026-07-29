@@ -1,7 +1,9 @@
 import unittest
 import io
 import contextlib
+import os
 import shutil
+import tempfile
 from agentos.cli import main
 
 
@@ -15,11 +17,11 @@ class TestCli(unittest.TestCase):
         self.assertEqual(code, 1)
 
     def test_json_output(self):
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
             main(["--json", "ledger", "tests/fixtures/ledger_ok.ndjson"])
-        self.assertIn('"name": "ledger"', buf.getvalue())
-        self.assertIn('"grade": "A"', buf.getvalue())
+        self.assertIn('"name": "ledger"', output.getvalue())
+        self.assertIn('"grade": "A"', output.getvalue())
 
     def test_unknown_command_exit_two(self):
         code = main(["nope"])
@@ -36,18 +38,18 @@ class TestCli(unittest.TestCase):
     def test_malformed_policy_exit_two(self):
         # A malformed policy file (config input) is a config error, not a
         # violation: the CLI maps YamlError to exit 2.
-        import tempfile, os
-        fd, path = tempfile.mkstemp(suffix=".yaml")
+        file_descriptor, policy_path = tempfile.mkstemp(suffix=".yaml")
         try:
-            with os.fdopen(fd, "w") as fh:
-                fh.write("banned: |\n  block literal not in subset\n")
-            buf = io.StringIO()
-            with contextlib.redirect_stderr(buf):
-                code = main(["deps", "--dep-policy", path, "--root", "tests/fixtures"])
+            with os.fdopen(file_descriptor, "w") as policy_file:
+                policy_file.write("banned: |\n  block literal not in subset\n")
+            captured_errors = io.StringIO()
+            with contextlib.redirect_stderr(captured_errors):
+                code = main(["deps", "--dep-policy", policy_path,
+                             "--root", "tests/fixtures"])
             self.assertEqual(code, 2)
-            self.assertIn("config error", buf.getvalue())
+            self.assertIn("config error", captured_errors.getvalue())
         finally:
-            os.remove(path)
+            os.remove(policy_path)
 
     @unittest.skipUnless(shutil.which("git"), "git not available")
     def test_bad_git_range_exit_two(self):
