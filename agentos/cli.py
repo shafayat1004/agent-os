@@ -75,6 +75,9 @@ def main(argv=None):
     command_parser = subparsers.add_parser("hook-stop")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
+    command_parser = subparsers.add_parser("check-path")
+    command_parser.add_argument("paths", nargs="+")
+    command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
     command_parser = subparsers.add_parser("all")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
@@ -99,6 +102,9 @@ def main(argv=None):
                                           os.getcwd())
     if args.cmd == "hook-stop":
         return hook_commands.run_stop(args.state_file, args.ledger_file)
+    if args.cmd == "check-path":
+        return hook_commands.run_check_path(args.paths, args.path_policy,
+                                            os.getcwd())
     if args.cmd == "init":
         try:
             summary = run_init(args.dest, _ROOT,
@@ -108,11 +114,12 @@ def main(argv=None):
             return 2
         if summary["settings_written"]:
             print("\nWrote .claude/settings.json with the PreToolUse and Stop"
-                  " hooks. The git pre-commit hook is already active.")
+                  " hooks.")
         else:
-            print("\n.claude/settings.json exists; merge these hooks into it")
-            print("(the git pre-commit hook is already active):\n")
+            print("\n.claude/settings.json exists; merge these hooks into it:\n")
             print(summary["settings_snippet"])
+        print("Also active: the git pre-commit hook and the opencode plugin"
+              " (.opencode/plugins/agentos.js).")
         return 0
     try:
         if args.cmd == "state":

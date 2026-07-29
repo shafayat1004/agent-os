@@ -10,6 +10,13 @@ Evidence report: `WHITEPAPER.md`.
 agent-os is a repository-owned, model-independent spec for agentic coding.
 It ships with a thin validator that checks the spec by machine, not by prose.
 
+Model-independent means concretely: `AGENTS.md` is the one rule file, and
+opencode, Codex, and Cursor read it natively. Pointer files carry the
+rules to the harnesses that need one (`CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`). Enforcement adapters exist for Claude
+Code (hooks), opencode (a plugin), and any git flow (a pre-commit hook).
+See section 3.
+
 This is a pre-codebase bootstrap. You copy agent-os into a target repo before
 the agent reads any code in that repo. The normative files ship as skeleton
 templates, not filled-in data. As work proceeds, the agent fills in
@@ -55,12 +62,13 @@ The file has a size budget, checked by line count. The soft cap is about
 about 250 non-blank lines. The validator fails past the hard cap. This
 budget stops rule-file bloat, a known failure mode for agent context.
 
-`CLAUDE.md`, and any future `.cursor` file, is a pointer file of five lines
-or fewer. It points at `AGENTS.md` and adds nothing else. This keeps one
-operative source of truth with many entry points, so the spec stays
-model-independent. The validator does not currently check this pointer
-file. The five-line limit is a convention the agent follows, not a rule
-`agentos` enforces in v0.1.
+Pointer files (`CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`, and any future equivalent) are five
+lines or fewer. Each points at `AGENTS.md` and adds nothing else. This
+keeps one operative source of truth with many entry points, so the spec
+stays model-independent. The validator does not currently check these
+pointer files. The five-line limit is a convention the agent follows,
+not a rule `agentos` enforces in v0.2.
 
 ### 2.2 `STATE.yaml` (task-state schema)
 
@@ -156,40 +164,45 @@ The lint scans manifest files, such as `*.fsproj`, `*.csproj`,
 `packages.config`, or `package.json`, for banned names. The `ecosystems`
 list is open. Future ecosystems, such as npm or pip, can extend it.
 
-## 3. Hook contract
+## 3. Hook contract and harness adapters
 
-The spec states the hook contract. The reference hooks under `hooks/` are
-thin wrappers, built to drop into Claude Code hooks and a git pre-commit
-hook.
+The checks are harness-neutral. Each coding agent gets a thin adapter
+that calls them. The reference hooks under `hooks/` are the Claude Code
+and git adapters for a vendored install. The opencode adapter is one
+plugin file. `agentos init` writes all three.
 
-| Hook | Checks | Fail behavior |
-|---|---|---|
-| `pre-tool` | path-policy on the tool call's target path, read from the hook's stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`; exit 1 (warn) on `ask_first` or an undeclared path |
-| `pre-commit` | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
-| `stop-check` | STATE and ledger valid against their schemas (`agentos hook-stop`) | exit 2 (refuse the success claim) |
+| Adapter | Fires on | Checks | Fail behavior |
+|---|---|---|---|
+| git `pre-commit` (`hooks/pre-commit`) | commit | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
+| Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit | path-policy on the tool call's target path, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`; exit 1 (warn) on `ask_first` or an undeclared path |
+| Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas (`agentos hook-stop`) | exit 2 (refuse the success claim) |
+| opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`; log a warning on `ask_first` |
+| opencode `session.idle` (same plugin) | session idle | STATE and ledger valid against their schemas (`agentos hook-stop`) | prompt the session to fix the artifacts before the done claim |
 
 Claude Code and the validator use different exit-code contracts. The
 validator exits 1 on a violation. A Claude Code PreToolUse or Stop hook
 blocks only on exit 2; any other nonzero code is a non-blocking warning.
-The `hook-pre-tool` and `hook-stop` subcommands do this mapping. Both
-fail open with exit 0 on a config error: a guardrail that cannot load its
-inputs must not wedge the editor. A git pre-commit hook blocks on any
-nonzero exit, so `pre-commit` calls the plain validator subcommands.
+The `hook-pre-tool` and `hook-stop` subcommands do this mapping, and the
+opencode plugin maps exit 2 to a thrown error, which is how opencode
+blocks a tool call. All adapters fail open on a config error: a
+guardrail that cannot load its inputs must not wedge the editor. A git
+pre-commit hook blocks on any nonzero exit, so `pre-commit` calls the
+plain validator subcommands.
 
-`pre-tool` does not check dependency-policy. `pre-commit` does not run
-schema validation. `stop-check` does not itself cross-check a "done" claim
-against `verification_status`. "No unverified done claim" is a convention
-the agent follows when it reports success, not a check `agentos` enforces
-in v0.2.
+`pre-tool` and the opencode edit check do not check dependency-policy.
+`pre-commit` does not run schema validation. The stop adapters do not
+themselves cross-check a "done" claim against `verification_status`.
+"No unverified done claim" is a convention the agent follows when it
+reports success, not a check `agentos` enforces in v0.2.
 
 Two deployment models exist. In the vendored model, the target repo
-carries its own copy of `bin/agentos` and the `agentos/` package, and the
-reference hooks under `hooks/` find them with `git rev-parse`. agent-os
-uses this model on itself. In the init model, `agentos init` writes hooks
-that point at one shared agent-os checkout by absolute path; that checkout
-becomes a permanent dependency of every repo it wires. Both models use
-`$CLAUDE_PROJECT_DIR` paths in `.claude/settings.json`, so the settings
-file is safe to commit.
+carries its own copy of `bin/agentos` and the `agentos/` package. The
+reference hooks find it with `git rev-parse`, and the opencode plugin
+prefers it when present. agent-os uses this model on itself. In the init
+model, `agentos init` writes adapters that point at one shared agent-os
+checkout by absolute path; that checkout becomes a permanent dependency
+of every repo it wires. Both models use `$CLAUDE_PROJECT_DIR` paths in
+`.claude/settings.json`, so the settings file is safe to commit.
 
 ## 4. Validator (`agentos`)
 
@@ -214,16 +227,23 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   similar). The policy `ignore` list adds more directory names to skip.
 - `agentos all` runs every check. It exits nonzero on any failure.
 - `agentos init [DEST]` wires a repo for use. It copies the skeleton
-  artifacts, writes a `CLAUDE.md` pointer at `AGENTS.md`, installs a git
+  artifacts, writes pointer files at `AGENTS.md` (`CLAUDE.md`,
+  `GEMINI.md`, `.github/copilot-instructions.md`), installs a git
   `pre-commit` hook, writes the Claude Code hook wrappers under
-  `.claude/hooks/`, and writes `.claude/settings.json` when that file
-  does not exist. When it does exist, init prints a snippet to merge. It
-  never overwrites a file that exists.
+  `.claude/hooks/`, writes the opencode plugin under
+  `.opencode/plugins/`, and writes `.claude/settings.json` when that
+  file does not exist. When it does exist, init prints a snippet to
+  merge. It never overwrites a file that exists.
 - `agentos hook-pre-tool` serves the Claude Code PreToolUse hook. It
   reads the tool call JSON on stdin and checks the target path against
   the path policy. Exit 2 blocks, exit 1 warns, exit 0 allows.
-- `agentos hook-stop` serves the Claude Code Stop hook. It checks STATE
-  and the ledger. Exit 2 refuses the done claim, exit 0 allows it.
+- `agentos hook-stop` serves the Claude Code Stop hook and the opencode
+  idle check. It checks STATE and the ledger. Exit 2 refuses the done
+  claim, exit 0 allows it.
+- `agentos check-path FILE...` checks one or more paths against the path
+  policy with the editor-time contract: exit 2 on `never`, exit 1 on
+  `ask_first` or an undeclared path, exit 0 otherwise. Harness adapters,
+  such as the opencode plugin, call this.
 
 Each check prints its evidence grade next to its result. Pass `--json` for
 machine-readable output, meant for CI.
@@ -243,13 +263,19 @@ agent-os/
 ├── SPEC.md
 ├── ROADMAP.md
 ├── AGENTS.md                   # operative rules for work on agent-os itself
-├── CLAUDE.md                   # pointer at AGENTS.md
+├── CLAUDE.md                   # pointer at AGENTS.md (Claude Code)
+├── GEMINI.md                   # pointer at AGENTS.md (Gemini CLI)
+├── .github/
+│   └── copilot-instructions.md # pointer at AGENTS.md (Copilot)
 ├── STATE.yaml                  # live task state for work on agent-os itself
 ├── evidence/
 │   └── ledger.ndjson           # claims with proof, for agent-os itself
 ├── .claude/
 │   ├── settings.json           # the repo's own Claude Code hook registration
 │   └── skills/
+├── .opencode/
+│   └── plugins/
+│       └── agentos.js          # the repo's own opencode adapter
 ├── schemas/
 │   ├── task-state.schema.json
 │   ├── evidence.schema.json
@@ -294,8 +320,10 @@ agent-os/
 
 agent-os governs its own codebase with the same artifacts it defines. The
 repo root carries a populated `AGENTS.md`, `STATE.yaml`, evidence ledger,
-policies, skill index, and `.claude/settings.json`, and the reference
-hooks under `hooks/` run against the repo's own `bin/agentos`.
+policies, skill index, and the pointer files, and both enforcement
+adapters are committed: `.claude/settings.json` for Claude Code and
+`.opencode/plugins/agentos.js` for opencode. The reference hooks under
+`hooks/` run against the repo's own `bin/agentos`.
 `tests/test_self_governance.py` is the self-compile gate: it runs
 `agentos all` on the repo itself and on a fresh init destination, and
 both must exit 0.

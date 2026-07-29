@@ -14,12 +14,14 @@ class TestSelfGovernance(unittest.TestCase):
     that cannot govern its own codebase governs nothing."""
 
     def test_repo_artifacts_exist(self):
-        for relative in ("AGENTS.md", "CLAUDE.md", "STATE.yaml",
+        for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "STATE.yaml",
                          os.path.join("evidence", "ledger.ndjson"),
                          os.path.join("policies", "path-policy.yaml"),
                          os.path.join("policies", "dependency-policy.yaml"),
                          os.path.join("skills", "index.yaml"),
-                         os.path.join(".claude", "settings.json")):
+                         os.path.join(".claude", "settings.json"),
+                         os.path.join(".opencode", "plugins", "agentos.js"),
+                         os.path.join(".github", "copilot-instructions.md")):
             self.assertTrue(os.path.exists(os.path.join(_ROOT, relative)),
                             relative)
 

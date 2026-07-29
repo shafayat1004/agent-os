@@ -40,6 +40,54 @@ class TestInit(unittest.TestCase):
             with open(os.path.join(temp_dir, "CLAUDE.md")) as pointer_file:
                 self.assertIn("AGENTS.md", pointer_file.read())
 
+    def test_writes_pointer_files_for_each_harness(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            for relative in ("CLAUDE.md", "GEMINI.md",
+                             os.path.join(".github", "copilot-instructions.md")):
+                path = os.path.join(temp_dir, relative)
+                self.assertTrue(os.path.exists(path), relative)
+                with open(path) as pointer_file:
+                    self.assertIn("AGENTS.md", pointer_file.read())
+
+    def test_writes_opencode_plugin(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            summary = run_init(temp_dir, _ROOT)
+            plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
+                                       "agentos.js")
+            self.assertTrue(os.path.exists(plugin_path))
+            with open(plugin_path) as plugin_file:
+                body = plugin_file.read()
+            self.assertIn("tool.execute.before", body)
+            self.assertIn("check-path", body)
+            self.assertIn("session.idle", body)
+            self.assertIn(json.dumps(summary["agentos_bin"]), body)
+
+    def test_opencode_plugin_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
+                                       "agentos.js")
+            os.makedirs(os.path.dirname(plugin_path))
+            with open(plugin_path, "w") as plugin_file:
+                plugin_file.write("// my custom plugin")
+            run_init(temp_dir, _ROOT)
+            with open(plugin_path) as plugin_file:
+                self.assertEqual(plugin_file.read(), "// my custom plugin")
+
+    @unittest.skipUnless(shutil.which("node"), "node not available")
+    def test_opencode_plugin_parses_as_es_module(self):
+        # node --check treats .js as CommonJS, so parse a .mjs copy to
+        # check the ES module syntax.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
+                                       "agentos.js")
+            module_copy = os.path.join(temp_dir, "plugin-check.mjs")
+            shutil.copyfile(plugin_path, module_copy)
+            completed = subprocess.run(["node", "--check", module_copy],
+                                       capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
     def test_installs_pre_commit_when_git_present(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             os.makedirs(os.path.join(temp_dir, ".git", "hooks"))

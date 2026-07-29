@@ -2,16 +2,25 @@
 
 Presence of the artifacts is not enough: an agent follows the rules only when
 the rule file is in the context the harness loads, and violations are blocked
-only when the hooks are registered. This command does the wiring that users
-otherwise skip, which produces a repo that looks governed but is not.
+only when the enforcement adapter is registered. This command does the wiring
+that users otherwise skip, which produces a repo that looks governed but is
+not.
 
-It does four things, all non-destructive (an existing file is never
+The wiring is harness-neutral. `AGENTS.md` is the rule file every supported
+agent reads (opencode, Codex, and Cursor read it natively). Pointer files
+cover the harnesses that need one (Claude Code, Gemini CLI, Copilot).
+Enforcement adapters cover Claude Code (hooks), opencode (plugin), and any
+git flow (pre-commit).
+
+It does these things, all non-destructive (an existing file is never
 overwritten):
   1. copy the skeleton templates (via bootstrap)
-  2. write a CLAUDE.md pointer at AGENTS.md
+  2. write pointer files (CLAUDE.md, GEMINI.md, copilot-instructions.md)
+     at AGENTS.md
   3. install a git pre-commit hook that runs the validator
   4. write Claude Code hook wrappers plus .claude/settings.json when that
      file does not exist (when it does, print a snippet to merge)
+  5. write the opencode plugin under .opencode/plugins/
 """
 import json
 import os
@@ -20,6 +29,73 @@ import stat
 from agentos.bootstrap import bootstrap
 
 _POINTER = "# Project rules\n\nAll agent rules live in AGENTS.md. Read it before you act.\n"
+
+# Rule-file pointers for the harnesses that do not read AGENTS.md natively.
+_POINTERS = ("CLAUDE.md", "GEMINI.md",
+             os.path.join(".github", "copilot-instructions.md"))
+
+_OPENCODE_PLUGIN = """// agent-os opencode plugin (installed by `agentos init`).
+// Enforcement adapter: blocks edits to never paths and refuses done claims
+// while STATE.yaml or evidence/ledger.ndjson is invalid.
+// Resolution: a vendored bin/agentos in this repo wins. Otherwise the
+// shared checkout recorded below is used. null means this repo is vendored.
+import { existsSync } from "node:fs"
+
+const SHARED = %s
+const EDIT_TOOLS = new Set(["edit", "write", "multiedit", "patch"])
+
+export const AgentOS = async ({ $, client, directory, worktree }) => {
+  const root = worktree || directory
+  const vendored = root + "/bin/agentos"
+  const agentos = existsSync(vendored) ? vendored : SHARED
+  if (!agentos) return {}  // no validator reachable: stay out of the way
+  const run = async (args) => {
+    const result = await $`${agentos} ${args}`.nothrow().quiet().cwd(root)
+    return { code: result.exitCode,
+             text: result.stderr.toString() + result.stdout.toString() }
+  }
+  const nudged = new Map()  // sessionID -> failure fingerprint already sent
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (!EDIT_TOOLS.has(input.tool)) return
+      const target = output.args.filePath || output.args.notebookPath
+      if (!target) return
+      const { code, text } = await run(["check-path", target])
+      if (code === 2) {
+        throw new Error(text.trim() || "agent-os: path policy blocks this edit")
+      }
+      if (code === 1 && text.trim()) {
+        await client.app.log({ body: { service: "agent-os", level: "warn",
+                                       message: text.trim() } })
+      }
+    },
+    event: async ({ event }) => {
+      if (event.type !== "session.idle") return
+      const sessionID = event.properties && event.properties.sessionID
+      if (!sessionID) return
+      const { code, text } = await run(["hook-stop"])
+      if (code !== 2) return
+      const fingerprint = text.trim()
+      if (nudged.get(sessionID) === fingerprint) return  // no repeat loops
+      nudged.set(sessionID, fingerprint)
+      try {
+        await client.session.prompt({
+          path: { id: sessionID },
+          body: { parts: [{ type: "text", text:
+            "agent-os refuses the done claim:\\n" + fingerprint +
+            "\\nFix STATE.yaml or evidence/ledger.ndjson, then stop again." }] },
+        })
+      } catch (error) {
+        // Best effort: the git pre-commit hook still enforces.
+      }
+    },
+  }
+}
+"""
+
+
+def _opencode_plugin(agentos_bin):
+    return _OPENCODE_PLUGIN % json.dumps(agentos_bin)
 
 
 def _pre_commit(agentos_bin):
@@ -89,11 +165,14 @@ def run_init(dest, agentos_root, report=None):
     agentos_bin = os.path.join(os.path.abspath(agentos_root), "bin", "agentos")
 
     bootstrap(os.path.join(agentos_root, "templates"), dest, report)
-    _write_if_absent(os.path.join(dest, "CLAUDE.md"), _POINTER, report)
+    for pointer_name in _POINTERS:
+        _write_if_absent(os.path.join(dest, pointer_name), _POINTER, report)
     _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-pre-tool"),
                      _pre_tool(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-stop-check"),
                      _stop_check(agentos_bin), report, executable=True)
+    _write_if_absent(os.path.join(dest, ".opencode", "plugins", "agentos.js"),
+                     _opencode_plugin(agentos_bin), report)
     settings_written = _write_if_absent(
         os.path.join(dest, ".claude", "settings.json"),
         _settings_snippet() + "\n", report)

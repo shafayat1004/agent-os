@@ -11,6 +11,8 @@ may_edit:
   - skills
   - docs
   - .claude
+  - .opencode
+  - .github
   - .superpowers
   - "*.md"
   - .gitignore

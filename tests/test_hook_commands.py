@@ -121,6 +121,48 @@ class TestHookPreTool(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
 
 
+class TestCheckPath(unittest.TestCase):
+    def _repo(self, temp_dir):
+        _write(temp_dir, os.path.join("policies", "path-policy.yaml"), _POLICY)
+
+    def test_never_blocks_with_exit_2(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir)
+            completed = _run(["check-path", "gen/out.render"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("never", completed.stderr)
+
+    def test_ask_first_warns_with_exit_1(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir)
+            completed = _run(["check-path", "deploy/release.sh"], temp_dir)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+
+    def test_may_edit_allows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir)
+            completed = _run(["check-path", "src/main.py"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_undeclared_warns_with_exit_1(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir)
+            completed = _run(["check-path", "other/thing.py"], temp_dir)
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+
+    def test_worst_code_wins_across_paths(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir)
+            completed = _run(["check-path", "src/a.py", "gen/x.render"],
+                             temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+
+    def test_missing_policy_allows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = _run(["check-path", "gen/out.render"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
 class TestHookStop(unittest.TestCase):
     def test_valid_artifacts_allow_stop(self):
         with tempfile.TemporaryDirectory() as temp_dir:

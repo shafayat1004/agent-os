@@ -3,6 +3,11 @@
 A repository-owned, model-independent spec for agentic coding, plus a thin
 validator that checks it by machine.
 
+Supported agents: opencode, Codex, and Cursor read `AGENTS.md` natively.
+Claude Code, Gemini CLI, and Copilot get pointer files. Enforcement ships
+for Claude Code (hooks), opencode (a plugin), and every git flow (a
+pre-commit hook).
+
 Read `SPEC.md` for the normative rules: the six artifacts, the hook
 contract, and the validator's subcommands and exit codes. Read
 `ROADMAP.md` for the modules the spec leaves unbuilt, and the gate each one
@@ -27,9 +32,10 @@ cd your-repo
 /path/to/agent-os/bin/agentos init
 ```
 
-That is the whole setup. The git pre-commit hook and the Claude Code
-hooks are active right away: a `never` path blocks the edit, an invalid
-`STATE.yaml` blocks the done claim. Then, when you have a minute:
+That is the whole setup. The git pre-commit hook, the Claude Code
+hooks, and the opencode plugin are active right away: a `never` path
+blocks the edit, an invalid `STATE.yaml` blocks the done claim. Then,
+when you have a minute:
 
 1. Fill in the `Commands` section of `AGENTS.md` (build, test).
 2. Narrow `policies/path-policy.yaml` when some paths need approval.
@@ -65,15 +71,17 @@ What happens to what you already have:
 
 ### What `init` gives you
 
-- `AGENTS.md`, the operative rule file, plus a `CLAUDE.md` pointer at
-  it. The agent reads its rules from here.
+- `AGENTS.md`, the operative rule file every supported agent reads,
+  plus pointer files (`CLAUDE.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`) for the harnesses that need one.
 - `STATE.yaml` and `evidence/ledger.ndjson`, the task state and the
-  proof log the Stop hook checks.
+  proof log the Stop adapters check.
 - `policies/`, `skills/index.yaml`, the rule inputs for the checks.
-- Active enforcement: a git pre-commit hook and Claude Code PreToolUse
-  and Stop hooks, registered in `.claude/settings.json`.
+- Active enforcement: a git pre-commit hook, Claude Code PreToolUse and
+  Stop hooks registered in `.claude/settings.json`, and an opencode
+  plugin in `.opencode/plugins/`.
 
-The hooks call the agent-os checkout by absolute path, so keep the
+The adapters call the agent-os checkout by absolute path, so keep the
 clone around. To vendor agent-os into your repo instead, see the
 deployment models in `SPEC.md` section 3.
 
