@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "required": ["name", "version", "owner", "purpose", "when_to_use"],
+  "properties": {
+    "name": {"type": "string"},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "owner": {"type": "string"},
+    "purpose": {"type": "string"},
+    "when_to_use": {"type": "string"},
+    "inputs": {"type": "array", "items": {"type": "string"}},
+    "outputs": {"type": "array", "items": {"type": "string"}},
+    "tests": {"type": "array", "items": {"type": "string"}},
+    "safety_constraints": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "string"}
+  }
+}
