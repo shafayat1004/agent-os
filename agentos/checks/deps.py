@@ -5,14 +5,26 @@ from agentos.result import CheckResult, Finding
 
 _MANIFESTS = (".fsproj", ".csproj", "package.json", "packages.config")
 
+# Directories skipped by default: version control, vendored dependencies, and
+# build output. They hold restored or generated manifests, not source the
+# repo owns, so a scan of them is slow and reports false positives. The policy
+# `ignore` list adds to this set.
+_DEFAULT_IGNORE = (
+    ".git", ".hg", ".svn",
+    "node_modules", "bower_components", "vendor", "packages",
+    ".venv", "venv", "__pycache__", ".tox",
+    "bin", "obj", "dist", "build", "target",
+)
+
 
 def check_deps(policy_path, root):
     with open(policy_path) as fh:
         policy = yaml_min.load(fh.read())
     banned = [b["name"] for b in policy.get("banned", []) or []]
+    ignore = set(_DEFAULT_IGNORE) | set(policy.get("ignore", []) or [])
     findings = []
     for dirpath, dirs, files in os.walk(root):
-        dirs.sort()
+        dirs[:] = sorted(d for d in dirs if d not in ignore)
         for name in sorted(files):
             if not name.endswith(_MANIFESTS) and name not in _MANIFESTS:
                 continue

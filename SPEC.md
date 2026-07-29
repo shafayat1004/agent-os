@@ -182,7 +182,10 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   It reports pass or fail plus the exact violations.
 - `agentos rules [AGENTS.md]` checks the size and structure of the rule file.
 - `agentos skills` lints the skill manifest against `.claude/skills/*`.
-- `agentos deps` scans manifests against the dependency policy.
+- `agentos deps` scans manifests against the dependency policy. It skips
+  version control, vendored dependencies, and build output by default
+  (`node_modules`, `.git`, `bin`, `obj`, `dist`, `build`, `packages`, and
+  similar). The policy `ignore` list adds more directory names to skip.
 - `agentos all` runs every check. It exits nonzero on any failure.
 - `agentos init [DEST]` wires a repo for use. It copies the skeleton
   artifacts, writes a `CLAUDE.md` pointer at `AGENTS.md`, installs a git

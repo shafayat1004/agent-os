@@ -5,3 +5,6 @@ banned:
     reason: org rule
 required: []
 ecosystems: [nuget]
+# Version control, vendored dependencies, and build output are skipped by
+# default. Add repo-specific directories here.
+ignore: [Fake, .fake, paket-files]

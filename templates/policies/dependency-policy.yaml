@@ -5,3 +5,7 @@ banned:
     reason: org rule
 required: []
 ecosystems: [nuget]
+# ignore: extra directory names to skip during the scan. Version control,
+# vendored dependencies, and build output (node_modules, .git, bin, obj,
+# dist, build, packages, and similar) are skipped by default.
+ignore: []
