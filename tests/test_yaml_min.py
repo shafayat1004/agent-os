@@ -75,6 +75,15 @@ class TestYamlMin(unittest.TestCase):
         with self.assertRaises(YamlError):
             load(text)
 
+    def test_sequence_scalar_with_colon_is_string(self):
+        # A URL in a block sequence must stay a scalar, not become a mapping.
+        self.assertEqual(load("refs:\n  - https://example.com/a\n  - plain\n"),
+                         {"refs": ["https://example.com/a", "plain"]})
+
+    def test_sequence_mapping_value_with_colon(self):
+        self.assertEqual(load("items:\n  - url: https://example.com\n"),
+                         {"items": [{"url": "https://example.com"}]})
+
     def test_flat_sequence_item_still_works(self):
         text = ("confirmed_facts:\n"
                 "  - fact: a\n"

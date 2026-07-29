@@ -1,7 +1,8 @@
 from agentos.grades import grade_for
 from agentos.result import CheckResult, Finding
 
-_REQUIRED = ["Commands", "Invariants", "Forbidden", "Approval gates", "Scope"]
+_REQUIRED = ["Commands", "Invariants", "Forbidden", "Approval gates", "Scope",
+             "Conventions"]
 
 
 def check_rules(path, soft=150, hard=250):

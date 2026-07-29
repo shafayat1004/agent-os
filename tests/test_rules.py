@@ -12,6 +12,21 @@ class TestRules(unittest.TestCase):
         r = check_rules("tests/fixtures/agents_big.md", soft=3, hard=5)
         self.assertFalse(r.ok)
 
+    def test_missing_conventions_warns(self):
+        import tempfile, os
+        body = "\n".join("## %s\n- x" % s for s in
+                         ["Commands", "Invariants", "Forbidden",
+                          "Approval gates", "Scope"])
+        fd, path = tempfile.mkstemp(suffix=".md")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(body)
+            r = check_rules(path)
+            self.assertTrue(any(f.level == "warn" and "Conventions" in f.message
+                                for f in r.findings))
+        finally:
+            os.remove(path)
+
     def test_missing_section_warns(self):
         r = check_rules("tests/fixtures/agents_ok.md", soft=1000, hard=2000)
         # agents_ok.md omits no required section, so force a missing one:

@@ -103,7 +103,7 @@ def _parse_sequence(lines, idx, indent):
         if cur_indent > indent:
             raise YamlError("unexpected indentation at line %d" % (n + 1))
         item = content[2:].strip()
-        if ":" in item and not item.startswith(("[", "{", '"', "'")):
+        if _has_map_colon(item) and not item.startswith(("[", "{", '"', "'")):
             # inline first mapping key on the dash line
             merged, idx = _parse_inline_map_item(lines, idx, indent, item)
             result.append(merged)
@@ -111,6 +111,23 @@ def _parse_sequence(lines, idx, indent):
             result.append(_scalar_or_flow(item, n))
             idx += 1
     return result, idx
+
+
+def _has_map_colon(item):
+    # A YAML mapping key ends with ": " or a trailing ":"; a bare scalar such
+    # as a URL ("https://x") has a colon but no following space, so it is not
+    # a mapping. Quotes are honored so ": " inside a quoted scalar is ignored.
+    quote = None
+    for i, ch in enumerate(item):
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"'):
+            quote = ch
+        elif ch == ":":
+            if i == len(item) - 1 or item[i + 1] == " ":
+                return True
+    return False
 
 
 def _parse_inline_map_item(lines, idx, indent, first):

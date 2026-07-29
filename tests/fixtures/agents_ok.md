@@ -14,3 +14,6 @@
 
 ## Scope
 - may edit Lib*
+
+## Conventions (pointer)
+- see docs
