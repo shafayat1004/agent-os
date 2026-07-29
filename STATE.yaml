@@ -1,32 +1,38 @@
-task_id: v0.2-pr2-review-fixes
-goal: Make init produce a working greenfield starter, make the Claude Code hooks enforce, and self-govern the agent-os repo
-risk_class: reversible
-scope_in: [agentos, tests, templates, hooks, policies, evidence, skills, SPEC.md, README.md, AGENTS.md, CLAUDE.md, .claude]
-scope_out: [examples]
+task_id: v0.3-self-governance-verify
+goal: Verify the agent-os repo self-governs per the last commit (8af54f7), then record the result
+risk_class: read-only
+scope_in: [STATE.yaml, evidence]
+scope_out: []
 acceptance_criteria:
+  - agentos all exits 0 on the agent-os repo itself
   - agentos all exits 0 on a fresh init destination
   - hook-pre-tool blocks a never-path edit with exit 2
-  - agentos all exits 0 on the agent-os repo itself
+  - hook-stop refuses an invalid STATE done claim with exit 2
+  - the full test suite passes
 confirmed_facts:
-  - fact: fresh init failed agentos all because the STATE template shipped null strings
-    evidence_ref: tests/test_self_governance.py
-  - fact: Claude Code PreToolUse and Stop hooks block only on exit code 2
-    evidence_ref: agentos/hooks.py
-  - fact: the pre-tool wrapper checked the staged diff, not the agent's edit target
-    evidence_ref: tests/test_hook_commands.py
+  - fact: agentos all passes on the repo (all 6 checks, exit 0)
+    evidence_ref: evidence/ledger.ndjson line 7
+  - fact: a fresh init into a real git repo passes agentos all (exit 0)
+    evidence_ref: evidence/ledger.ndjson line 8
+  - fact: hook-pre-tool exits 2 on a never path and 0 on a may_edit path
+    evidence_ref: evidence/ledger.ndjson line 9
+  - fact: hook-stop exits 0 on valid STATE and exit 2 on invalid STATE
+    evidence_ref: evidence/ledger.ndjson line 10
+  - fact: 114 of 114 tests pass including the self-compile gate
+    evidence_ref: evidence/ledger.ndjson line 11
 assumptions: []
 decisions:
-  - decision: hook subcommands exit 2 on a violation and fail open on a config error
-    rationale: a guardrail that cannot load its inputs must not wedge the editor
-  - decision: init writes .claude/settings.json only when the file is absent
-    rationale: non-destructive wiring for greenfield, a merge snippet otherwise
+  - decision: keep STATE.yaml current with the actual HEAD instead of a merged PR
+    rationale: the self-governance invariant requires STATE to reflect real state
 failed_hypotheses: []
 open_questions: []
-changed_files: []
+changed_files:
+  - STATE.yaml
+  - evidence/ledger.ndjson
 verification_status:
-  format: n/a
-  compile: n/a
+  format: pass
+  compile: pass
   tests: pass
   policy: pass
   security: n/a
-next_action: await human review and merge of PR 2
+next_action: await the next task
