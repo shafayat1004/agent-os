@@ -29,9 +29,10 @@ Run the validator against your repo's files:
 ./bin/agentos all
 ```
 
-Add `--json` to any subcommand for machine-readable output. Exit code `0`
-means every check passed. Exit code `1` means a check found a violation.
-Exit code `2` means a config or usage error.
+Put `--json` before the subcommand for machine-readable output, for
+example `./bin/agentos --json state STATE.yaml`. Exit code `0` means every
+check passed. Exit code `1` means a check found a violation. Exit code `2`
+means a config or usage error.
 
 `agentos` needs Python 3.8 or later and no third-party packages.
 

@@ -46,15 +46,17 @@ is its evidence grade from `WHITEPAPER.md`.
 
 Narrative belongs in linked docs, not in `AGENTS.md`.
 
-The file has a size budget. The soft cap is about 150 lines or 1500 tokens.
-The validator warns past the soft cap. The hard cap is about 250 lines. The
-validator fails past the hard cap. This budget stops rule-file bloat, a
-known failure mode for agent context.
+The file has a size budget, checked by line count. The soft cap is about
+150 non-blank lines. The validator warns past the soft cap. The hard cap is
+about 250 non-blank lines. The validator fails past the hard cap. This
+budget stops rule-file bloat, a known failure mode for agent context.
 
 `CLAUDE.md`, and any future `.cursor` file, is a pointer file of five lines
 or fewer. It points at `AGENTS.md` and adds nothing else. This keeps one
 operative source of truth with many entry points, so the spec stays
-model-independent.
+model-independent. The validator does not currently check this pointer
+file. The five-line limit is a convention the agent follows, not a rule
+`agentos` enforces in v0.1.
 
 ### 2.2 `STATE.yaml` (task-state schema)
 
@@ -153,9 +155,15 @@ hook.
 
 | Hook | Checks | Fail behavior |
 |---|---|---|
-| `pre-tool` | path-policy on the target path, dependency-policy on manifest edits | block on `never`, warn on `ask_first` |
-| `stop-check` | verification_status complete, STATE and ledger valid, no unverified done claim | refuse the success claim |
-| `pre-commit` | path-policy on the staged diff, dependency-policy, schema validation | block the commit |
+| `pre-tool` | path-policy on the staged diff (`agentos diff --staged`) | block on `never`, warn on `ask_first` |
+| `pre-commit` | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit |
+| `stop-check` | STATE and ledger valid against their schemas (`agentos state`, `agentos ledger`) | refuse the success claim |
+
+`pre-tool` does not check dependency-policy. `pre-commit` does not run
+schema validation. `stop-check` does not itself cross-check a "done" claim
+against `verification_status`. "No unverified done claim" is a convention
+the agent follows when it reports success, not a check `agentos` enforces
+in v0.1.
 
 ## 4. Validator (`agentos`)
 
@@ -201,6 +209,8 @@ agent-os/
 ├── policies/
 │   ├── path-policy.yaml
 │   └── dependency-policy.yaml
+├── skills/
+│   └── index.yaml
 ├── templates/                  # skeleton copies for bin/bootstrap
 ├── examples/
 │   └── subject/                # one populated instance, derived from a real repo
