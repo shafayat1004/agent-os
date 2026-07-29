@@ -1,0 +1,5 @@
+#!/bin/sh
+# agent-os stop-check: refuse a done claim without valid STATE and ledger.
+ROOT="$(git rev-parse --show-toplevel)"
+"$ROOT/bin/agentos" state || exit 1
+"$ROOT/bin/agentos" ledger || exit 1

@@ -1,0 +1,5 @@
+#!/bin/sh
+# agent-os pre-commit hook: enforce path and dependency policy on staged changes.
+ROOT="$(git rev-parse --show-toplevel)"
+"$ROOT/bin/agentos" diff --staged || exit 1
+"$ROOT/bin/agentos" deps || exit 1
