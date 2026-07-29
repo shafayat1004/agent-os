@@ -184,6 +184,11 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
 - `agentos skills` lints the skill manifest against `.claude/skills/*`.
 - `agentos deps` scans manifests against the dependency policy.
 - `agentos all` runs every check. It exits nonzero on any failure.
+- `agentos init [DEST]` wires a repo for use. It copies the skeleton
+  artifacts, writes a `CLAUDE.md` pointer at `AGENTS.md`, installs a git
+  `pre-commit` hook, writes the Claude Code hook wrappers under
+  `.claude/hooks/`, and prints a settings snippet to paste. It never
+  overwrites a file that exists.
 
 Each check prints its evidence grade next to its result. Pass `--json` for
 machine-readable output, meant for CI.

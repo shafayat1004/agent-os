@@ -11,7 +11,23 @@ design choices.
 
 ## Quick start
 
-Copy the skeleton artifacts into a target repo:
+For a new repo, wire everything in one step:
+
+```bash
+./bin/agentos init /path/to/target-repo
+```
+
+`init` copies the skeleton artifacts, writes a `CLAUDE.md` pointer at
+`AGENTS.md`, installs a git `pre-commit` hook, and writes the Claude Code
+hook wrappers. It then prints a settings snippet to paste into
+`.claude/settings.json`. `init` never overwrites a file that exists, so it
+is safe to run again.
+
+The folder alone does not make an agent obey the rules. The agent reads the
+rules only when `CLAUDE.md` points at `AGENTS.md`, and a violation is
+blocked only when the hooks are active. `init` does both.
+
+To copy only the skeleton artifacts, without the wiring:
 
 ```bash
 ./bin/bootstrap /path/to/target-repo

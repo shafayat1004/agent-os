@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import subprocess
 import sys
 
@@ -10,7 +11,10 @@ from agentos.checks import deps as deps_check
 from agentos.checks import skills as skills_check
 from agentos.checks import rules as rules_check
 from agentos import gitutil
+from agentos.initcmd import run_init
 from agentos.yaml_min import YamlError
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _print(results, as_json):
@@ -60,6 +64,8 @@ def main(argv=None):
     p.add_argument("--skill-index", default="skills/index.yaml")
     p.add_argument("--skills-dir", default=".claude/skills")
     p = sub.add_parser("rules"); p.add_argument("rules_file", nargs="?", default="AGENTS.md")
+    p = sub.add_parser("init")
+    p.add_argument("dest", nargs="?", default=".")
     p = sub.add_parser("all")
     p.add_argument("--state-file", default="STATE.yaml")
     p.add_argument("--ledger-file", default="evidence/ledger.ndjson")
@@ -79,6 +85,17 @@ def main(argv=None):
     if a.cmd is None:
         parser.print_help()
         return 2
+    if a.cmd == "init":
+        try:
+            summary = run_init(a.dest, _ROOT,
+                               report=lambda act, p: print("%s: %s" % (act, p)))
+        except OSError as e:
+            print("config error: %s" % e, file=sys.stderr)
+            return 2
+        print("\nNext: register these Claude Code hooks in .claude/settings.json")
+        print("(the git pre-commit hook is already active):\n")
+        print(summary["settings_snippet"])
+        return 0
     try:
         if a.cmd == "state":
             results = [state_check.check_state(a.state_file)]
