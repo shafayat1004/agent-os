@@ -51,6 +51,37 @@ class TestYamlMin(unittest.TestCase):
         with self.assertRaises(YamlError):
             load("a: |\n  line\n")
 
+    def test_anchor_raises(self):
+        with self.assertRaises(YamlError):
+            load("a: &x value\n")
+
+    def test_alias_raises(self):
+        with self.assertRaises(YamlError):
+            load("a: *x\n")
+
+    def test_quoted_ampersand_ok(self):
+        self.assertEqual(load('a: "&x"\n'), {"a": "&x"})
+
+    def test_block_literal_variant_raises(self):
+        with self.assertRaises(YamlError):
+            load("a: >-\n")
+
+    def test_nested_under_sequence_item_raises(self):
+        text = ("items:\n"
+                "  - fact: a\n"
+                "    detail:\n"
+                "      x: 1\n"
+                "      y: 2\n")
+        with self.assertRaises(YamlError):
+            load(text)
+
+    def test_flat_sequence_item_still_works(self):
+        text = ("confirmed_facts:\n"
+                "  - fact: a\n"
+                "    evidence_ref: b\n")
+        self.assertEqual(load(text),
+                          {"confirmed_facts": [{"fact": "a", "evidence_ref": "b"}]})
+
 
 if __name__ == "__main__":
     unittest.main()

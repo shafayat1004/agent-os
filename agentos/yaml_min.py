@@ -2,6 +2,9 @@
 
 Supported: block mappings, block sequences, flow lists and maps of scalars,
 typed scalars, quoted strings, comments. Unsupported constructs raise YamlError.
+Must-raise (never silently accepted): anchors, aliases, multi-document streams,
+tab indentation, block literals (including chomping/indent variants like
+|-, |+, >-, >+, |2, >2), and a nested block under a sequence-item inline mapping.
 See the plan for the full subset definition.
 """
 
@@ -120,6 +123,9 @@ def _parse_inline_map_item(lines, idx, indent, first):
         cn, cur_indent, content = lines[idx]
         if cur_indent < child_indent or content.startswith("- "):
             break
+        if cur_indent > child_indent:
+            raise YamlError(
+                "nested block under sequence item not supported at line %d" % (cn + 1))
         if ":" not in content:
             raise YamlError("expected 'key:' at line %d" % (cn + 1))
         k, _, v = content.partition(":")
@@ -143,9 +149,20 @@ def _scalar_or_flow(text, n):
             k, _, v = part.partition(":")
             out[k.strip()] = _scalar(v.strip(), n)
         return out
-    if text in ("|", ">"):
+    if _is_block_scalar_indicator(text):
         raise YamlError("block scalar not supported at line %d" % (n + 1))
     return _scalar(text, n)
+
+
+def _is_block_scalar_indicator(text):
+    if not text or text[0] not in "|>":
+        return False
+    rest = text[1:]
+    if len(rest) > 2:
+        return False
+    digits = sum(1 for c in rest if c.isdigit())
+    signs = sum(1 for c in rest if c in "+-")
+    return digits <= 1 and signs <= 1 and digits + signs == len(rest)
 
 
 def _split_flow(inner):
@@ -182,6 +199,8 @@ def _scalar(text, n):
         return None
     if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
         return text[1:-1]
+    if text[0] in ("&", "*"):
+        raise YamlError("anchors/aliases not supported at line %d" % (n + 1))
     if text in ("null", "~"):
         return None
     if text == "true":
