@@ -1,0 +1,7 @@
+#!/bin/sh
+# agent-os pre-compact hook: remind the agent to refresh STATE.yaml so
+# durable state survives compaction, and report any STATE schema errors.
+# Wire as a PreCompact hook. Advisory only: it always exits 0.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+exec "$ROOT/bin/agentos" hook-pre-compact

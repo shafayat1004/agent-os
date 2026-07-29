@@ -15,4 +15,4 @@ class CheckResult:
 
     @property
     def ok(self) -> bool:
-        return all(f.level != "error" for f in self.findings)
+        return all(finding.level != "error" for finding in self.findings)

@@ -1,5 +1,5 @@
-task_id:
-goal:
+task_id: ""
+goal: ""
 risk_class: reversible
 scope_in: []
 scope_out: []
@@ -16,4 +16,5 @@ verification_status:
   tests: pending
   policy: pending
   security: pending
-next_action:
+next_action: ""
+stop_readiness: blocked

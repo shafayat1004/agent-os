@@ -11,15 +11,15 @@ _DEFAULT_SCHEMA = os.path.join(_ROOT, "schemas", "task-state.schema.json")
 def check_state(path, schema_path=None):
     schema_path = schema_path or _DEFAULT_SCHEMA
     findings = []
-    with open(schema_path) as fh:
-        schema = json.load(fh)
-    with open(path) as fh:
-        text = fh.read()
+    with open(schema_path) as schema_file:
+        schema = json.load(schema_file)
+    with open(path) as state_file:
+        text = state_file.read()
     try:
-        data = yaml_min.load(text)
-    except yaml_min.YamlError as e:
+        state_data = yaml_min.load(text)
+    except yaml_min.YamlError as error:
         return CheckResult("state", grade_for("state"),
-                           [Finding("error", "cannot load %s: %s" % (path, e))])
-    for err in jsonschema_min.validate(data, schema):
-        findings.append(Finding("error", err))
+                           [Finding("error", "cannot load %s: %s" % (path, error))])
+    for error in jsonschema_min.validate(state_data, schema):
+        findings.append(Finding("error", error))
     return CheckResult("state", grade_for("state"), findings)

@@ -16,12 +16,12 @@ class TestGrades(unittest.TestCase):
 
 class TestResult(unittest.TestCase):
     def test_ok_true_with_only_warnings(self):
-        r = CheckResult("state", "A-", [Finding("warn", "soft cap")])
-        self.assertTrue(r.ok)
+        result = CheckResult("state", "A-", [Finding("warn", "soft cap")])
+        self.assertTrue(result.ok)
 
     def test_ok_false_with_error(self):
-        r = CheckResult("state", "A-", [Finding("error", "missing field")])
-        self.assertFalse(r.ok)
+        result = CheckResult("state", "A-", [Finding("error", "missing field")])
+        self.assertFalse(result.ok)
 
 
 if __name__ == "__main__":

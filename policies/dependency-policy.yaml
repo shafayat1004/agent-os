@@ -1,8 +1,7 @@
-# Skeleton dependency policy. Populate per target repo.
-banned:
-  - name: Moq
-    reason: org rule
-  - name: AutoMapper
-    reason: org rule
+# Dependency policy for the agent-os repo itself (self-governance).
+# The repo ships no package manifests. The zero-dependency rule is an
+# invariant in AGENTS.md, guarded by review and by this scan staying empty.
+banned: []
 required: []
-ecosystems: [nuget]
+ecosystems: []
+ignore: []

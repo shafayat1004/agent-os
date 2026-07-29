@@ -35,6 +35,7 @@
         "security": {"enum": ["pass", "fail", "n/a", "pending"]}
       }
     },
-    "next_action": {"type": "string"}
+    "next_action": {"type": "string"},
+    "stop_readiness": {"enum": ["ready", "blocked"]}
   }
 }
