@@ -27,6 +27,35 @@ class TestRules(unittest.TestCase):
         finally:
             os.remove(path)
 
+    def test_section_name_in_body_not_counted(self):
+        import tempfile, os
+        # Every required word appears in body text but there are no headings.
+        body = "Commands Invariants Forbidden Approval gates Scope Conventions\n"
+        fd, path = tempfile.mkstemp(suffix=".md")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(body)
+            r = check_rules(path)
+            missing = [f for f in r.findings if "missing section" in f.message]
+            self.assertEqual(len(missing), 6)
+        finally:
+            os.remove(path)
+
+    def test_out_of_order_warns(self):
+        import tempfile, os
+        order = ["Invariants", "Commands", "Forbidden", "Approval gates",
+                 "Scope", "Conventions"]  # Commands and Invariants swapped
+        body = "\n".join("## %s\n- x" % s for s in order)
+        fd, path = tempfile.mkstemp(suffix=".md")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(body)
+            r = check_rules(path)
+            self.assertTrue(any("out of required order" in f.message
+                                for f in r.findings))
+        finally:
+            os.remove(path)
+
     def test_missing_section_warns(self):
         r = check_rules("tests/fixtures/agents_ok.md", soft=1000, hard=2000)
         # agents_ok.md omits no required section, so force a missing one:

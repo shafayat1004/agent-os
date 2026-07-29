@@ -13,7 +13,12 @@ def check_skills(index_path, skills_dir, schema_path=None):
     with open(schema_path) as fh:
         schema = json.load(fh)
     with open(index_path) as fh:
-        index = yaml_min.load(fh.read()) or {}
+        text = fh.read()
+    try:
+        index = yaml_min.load(text) or {}
+    except yaml_min.YamlError as e:
+        return CheckResult("skills", grade_for("skills"),
+                           [Finding("error", "cannot load %s: %s" % (index_path, e))])
     entries = index.get("skills", []) or []
     findings = []
     names = set()

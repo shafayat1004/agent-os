@@ -33,6 +33,22 @@ class TestCli(unittest.TestCase):
         code = main(["ledger", "tests/fixtures/does_not_exist.ndjson"])
         self.assertEqual(code, 2)
 
+    def test_malformed_policy_exit_two(self):
+        # A malformed policy file (config input) is a config error, not a
+        # violation: the CLI maps YamlError to exit 2.
+        import tempfile, os
+        fd, path = tempfile.mkstemp(suffix=".yaml")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write("banned: |\n  block literal not in subset\n")
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                code = main(["deps", "--dep-policy", path, "--root", "tests/fixtures"])
+            self.assertEqual(code, 2)
+            self.assertIn("config error", buf.getvalue())
+        finally:
+            os.remove(path)
+
     @unittest.skipUnless(shutil.which("git"), "git not available")
     def test_bad_git_range_exit_two(self):
         code = main(["diff", "--range", "no-such-ref-zzz..also-no-such-zzz"])

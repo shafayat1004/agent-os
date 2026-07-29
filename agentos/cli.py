@@ -10,6 +10,7 @@ from agentos.checks import deps as deps_check
 from agentos.checks import skills as skills_check
 from agentos.checks import rules as rules_check
 from agentos import gitutil
+from agentos.yaml_min import YamlError
 
 
 def _print(results, as_json):
@@ -96,7 +97,8 @@ def main(argv=None):
             results = _run_all(a)
         else:
             return 2
-    except (FileNotFoundError, OSError, subprocess.CalledProcessError) as e:
+    except (FileNotFoundError, OSError, subprocess.CalledProcessError,
+            YamlError) as e:
         print("config error: %s" % e, file=sys.stderr)
         return 2
     _print(results, a.json)
