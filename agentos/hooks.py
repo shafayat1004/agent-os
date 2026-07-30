@@ -148,6 +148,11 @@ def run_stop(state_file, ledger_file, run_tests=None, err=None):
     the configured test command, when given, must exit 0. Exit 2 refuses
     the claim, exit 0 allows it. Missing artifacts fail open: a repo
     without the files has no done-claim contract to enforce.
+
+    This is the harness stop event. It fires on every turn end, so the
+    verdict gate runs only when the agent declares readiness. An agent
+    that pauses to ask a question is not claiming done. For an explicit
+    completion claim that cannot be bypassed, use `agentos done` instead.
     """
     err = err or sys.stderr
     try:
@@ -172,6 +177,85 @@ def run_stop(state_file, ledger_file, run_tests=None, err=None):
     if not isinstance(readiness, str) or readiness.strip().lower() != "ready":
         return 0
     return _verdict_gate(state_data, run_tests, err)
+
+
+def run_done(state_file, ledger_file, run_tests=None, verify_config=None,
+             err=None):
+    """Refuse a completion claim that lacks proof (issue #8).
+
+    The explicit finalization gate. Unlike `run_stop` (the harness stop
+    event, which fires every turn and gates only on a voluntary
+    stop_readiness: ready), a `done` claim ALWAYS invokes the verdict
+    gate. Missing or blocked readiness is rejected with an actionable
+    reason, not silently allowed. This closes the bypass where an agent
+    leaves stop_readiness unset, claims completion in prose, and stops
+    without the verification gate running.
+
+    Layer 1 (always on): STATE and the ledger must be schema-valid.
+    Layer 2 (readiness): stop_readiness must be exactly "ready"; an
+    absent, blocked, or malformed value is rejected with the fix the
+    agent needs to take.
+    Layer 3 (verifiers, when configured): when a verification config is
+    present, run it first so the verdict comes from execution, not
+    self-reported status.
+    Layer 4 (verdict): non-empty acceptance_criteria, every
+    verification_status field pass or n/a, and the test command, when
+    given, exits 0.
+
+    A missing verify config is a no-op (fresh repos stay self-reported),
+    not an error. Missing STATE/ledger fail open, same as run_stop.
+    """
+    err = err or sys.stderr
+    try:
+        results = [state_check.check_state(state_file),
+                   ledger_check.check_ledger(ledger_file)]
+    except (FileNotFoundError, OSError) as error:
+        print("agent-os: cannot check the done claim (%s); allowing" % error,
+              file=err)
+        return 0
+    failures = [finding for result in results for finding in result.findings
+                if finding.level == "error"]
+    if failures:
+        print("agent-os: STATE or ledger invalid; fix this before the done claim:",
+              file=err)
+        for finding in failures:
+            print("  %s" % finding.message, file=err)
+        return 2
+    state_data = _read_state_fields(state_file)
+    if not isinstance(state_data, dict):
+        return 0
+    readiness = state_data.get("stop_readiness")
+    readiness_ready = (isinstance(readiness, str)
+                       and readiness.strip().lower() == "ready")
+    if not readiness_ready:
+        reason = _readiness_reason(readiness)
+        print("agent-os: done claim refused: %s" % reason, file=err)
+        return 2
+    if verify_config and os.path.exists(verify_config):
+        from agentos.verify import run_verify
+        run_verify(verify_config, state_file, ledger_file, err=err)
+        state_data = _read_state_fields(state_file)
+        if not isinstance(state_data, dict):
+            state_data = {}
+    return _verdict_gate(state_data, run_tests, err)
+
+
+def _readiness_reason(readiness):
+    """Actionable reason text for a non-ready completion claim."""
+    if readiness is None:
+        return ("stop_readiness is not set. To claim done, set "
+                "stop_readiness: ready in STATE.yaml. For a mid-task pause "
+                "set stop_readiness: blocked.")
+    if not isinstance(readiness, str) or readiness.strip() == "":
+        return ("stop_readiness is empty. To claim done, set "
+                "stop_readiness: ready in STATE.yaml.")
+    value = readiness.strip().lower()
+    if value == "blocked":
+        return ("stop_readiness is blocked. A done claim requires "
+                "stop_readiness: ready. Set it to ready when the task is "
+                "complete, or keep blocked for a mid-task pause.")
+    return ("stop_readiness is '%s'; expected ready or blocked. Set "
+            "stop_readiness: ready to claim done." % readiness)
 
 
 _TRACE_FIELD_LIMIT = 200

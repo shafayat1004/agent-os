@@ -1,0 +1,8 @@
+# Verification commands for the agent-os repo itself.
+commands:
+  format: null
+  compile: null
+  tests: "python3 -m unittest discover -s tests"
+  policy: "./bin/agentos all"
+  security: null
+timeout: 600

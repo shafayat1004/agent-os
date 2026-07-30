@@ -3,6 +3,8 @@
 ## Commands
 - test: python3 -m unittest discover -s tests
 - validate: ./bin/agentos all
+- verify: ./bin/agentos verify
+- done: ./bin/agentos done
 - docs lint: python3 .claude/skills/ste-writing/scripts/ste-lint.py <file>
 
 ## Invariants
@@ -32,4 +34,5 @@
 - At task start, set STATE.yaml task_id, goal, and next_action. Keep STATE.yaml current as you work.
 - Append one line to evidence/ledger.ndjson for each verified claim: the claim, the proof, the timestamp.
 - Before any done claim, run ./bin/agentos all. Every check must pass.
-- To claim done, set stop_readiness: ready in STATE.yaml. The stop hook then grades verification_status and runs the test suite.
+- To claim done, set stop_readiness: ready in STATE.yaml, then run ./bin/agentos done. It always runs the verdict gate: a missing or blocked stop_readiness is rejected with an actionable reason, not silently allowed. A prose claim is not a done claim.
+- ./bin/agentos verify runs the commands in policies/verification.yaml and writes the derived status into STATE.yaml, so the verdict comes from execution, not a self-reported value. done runs verify first when a config is present.

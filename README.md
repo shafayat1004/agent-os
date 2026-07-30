@@ -125,6 +125,38 @@ broke. The matrix covers Python 3.9, 3.11, and 3.13, the supported
 range. Local hooks can be skipped; CI cannot, so CI is the authority
 on repo health.
 
+### Claim done
+
+To claim a task done, run `./bin/agentos done`. It always runs the
+verification gate:
+
+- `STATE.yaml` and `evidence/ledger.ndjson` must be valid against their
+  schemas.
+- `stop_readiness` must be `ready`. A missing or `blocked` value is
+  rejected with an actionable reason, not silently allowed.
+- `acceptance_criteria` must be non-empty.
+- Every `verification_status` field must be `pass` or `n/a`.
+- The test command, when given with `--run-tests CMD`, must exit 0.
+
+A prose claim is not a done claim. The harness stop event
+(`agentos hook-stop`) is different: it fires on every turn end and gates
+only when the agent declares `stop_readiness: ready`, so an agent that
+pauses to ask a question is not claiming done. `done` is the explicit
+finalization command that cannot be bypassed by leaving readiness unset.
+
+### Verify with real commands
+
+`agentos verify` reads `policies/verification.yaml`, runs each configured
+command (`format`, `compile`, `tests`, `policy`, `security`), derives the
+status from the exit code, records the command, the exit code, a
+timestamp, and an output hash in `evidence/ledger.ndjson`, and writes the
+derived status into `STATE.yaml`. `agentos done` runs `verify` first when
+a config is present, so the verdict comes from execution, not a
+self-reported value. `agentos init` detects common test commands
+(unittest, npm test, make test) and wires the repo-conformance check as
+`policy`. A `null` or omitted command marks that verifier unavailable
+(status `n/a`). A timeout or a non-runnable command is a `fail`.
+
 To copy only the skeleton artifacts, without the wiring:
 
 ```bash
@@ -146,6 +178,12 @@ Two more subcommands serve the Claude Code hooks and are not run by
 hand: `hook-pre-tool` reads a tool call as JSON on stdin and exits 2 to
 block a `never` path, and `hook-stop` exits 2 to refuse a done claim
 when `STATE.yaml` or the ledger is invalid.
+
+Two subcommands are the completion protocol: `agentos verify` runs the
+configured project verifiers and writes the derived status into
+`STATE.yaml`, and `agentos done` is the explicit completion gate that
+runs the verdict and rejects a missing or blocked `stop_readiness`. See
+"Claim done" and "Verify with real commands" above.
 
 Put `--json` before the subcommand for machine-readable output, for
 example `./bin/agentos --json state STATE.yaml`.

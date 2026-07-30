@@ -103,6 +103,15 @@ test command. Any other value, or an absent field, means no done claim,
 and the stop adapters check schema validity only. Mid-task stops stay
 free: an agent that pauses to ask a question is not claiming done.
 
+An explicit completion command, `agentos done`, complements the stop
+event. It always invokes the verdict gate: a missing, blocked, or
+malformed `stop_readiness` is rejected with an actionable reason, not
+silently allowed. The stop event (`agentos hook-stop`) fires on every
+turn end and gates only on a voluntary `ready`, so an agent that pauses
+to ask a question is not claiming done. `done` is the finalization
+command that cannot be bypassed by leaving readiness unset. A prose
+claim is not a done claim.
+
 A compaction rule applies. When context is shortened, do not summarize away
 `acceptance_criteria`, `confirmed_facts`, `decisions`, `failed_hypotheses`,
 or `verification_status`. These fields must stay intact.
@@ -188,7 +197,7 @@ plugin file. `agentos init` writes all three.
 | Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas; when STATE sets `stop_readiness: ready`, also the verdict gates (`agentos hook-stop`) | exit 2 (refuse the success claim) |
 | opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`; log a warning on `ask_first` |
 | opencode `tool.execute.after` (same plugin) | every tool call | none; appends the tool and target to the trace (`agentos hook-post-tool`) | none: instrumentation, errors ignored |
-| opencode `session.idle` (same plugin) | session idle | same as the Stop adapter (`agentos hook-stop`) | prompt the session to fix the artifacts before the done claim |
+| opencode `session.idle` (same plugin) | session idle | `agentos done` when `stop_readiness: ready` (skips the spawn otherwise) | refuse the done claim with an actionable reason; advisory toast and log (the git pre-commit hook is the hard gate) |
 
 Claude Code and the validator use different exit-code contracts. The
 validator exits 1 on a violation. A Claude Code PreToolUse or Stop hook
@@ -273,6 +282,23 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   policy with the editor-time contract: exit 2 on `never`, exit 1 on
   `ask_first` or an undeclared path, exit 0 otherwise. Harness adapters,
   such as the opencode plugin, call this.
+- `agentos verify` reads `policies/verification.yaml`, runs each
+  configured command (`format`, `compile`, `tests`, `policy`,
+  `security`), derives the status from the exit code, records the
+  command, exit code, timestamp, and an output hash in
+  `evidence/ledger.ndjson`, and writes the derived status into
+  `STATE.yaml`. A `null` or omitted command marks that verifier
+  unavailable (status `n/a`). A timeout or a non-runnable command is a
+  fail. The verdict comes from execution, not a self-reported value.
+- `agentos done` is the explicit completion gate. It runs the verdict
+  gate unconditionally: STATE and the ledger must be valid,
+  `stop_readiness` must be `ready` (a missing or blocked value is
+  rejected with an actionable reason), `acceptance_criteria` must be
+  non-empty, every `verification_status` field must be `pass` or `n/a`,
+  and the command given with `--run-tests CMD`, when passed, must exit 0.
+  When a `policies/verification.yaml` is present, `done` runs `verify`
+  first, so the status is derived from execution. `--no-verify` trusts
+  the self-reported status.
 
 Each check prints its evidence grade next to its result. Pass `--json` for
 machine-readable output, meant for CI.

@@ -24,6 +24,7 @@ overwritten):
 """
 import json
 import os
+import shlex
 import stat
 
 from agentos.bootstrap import bootstrap
@@ -109,11 +110,11 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       if (event.type !== "session.idle") return
       const sessionID = event.properties && event.properties.sessionID
       if (!sessionID) return
-      // Not a done claim: skip the validator spawn entirely so idle
+// Not a done claim: skip the validator spawn entirely so idle
       // stays cheap while stop_readiness is blocked (the common case;
       // templates ship blocked and you flip to ready only at task end).
       if (!isClaimingDone(root + "/STATE.yaml")) return
-      const { code, text } = await run(["hook-stop"])
+      const { code, text } = await run(["done"])
       if (code !== 2) return
       const fingerprint = text.trim()
       if (nudged.get(sessionID) === fingerprint) return  // one toast per failure
@@ -121,9 +122,11 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       // Advisory only: never start a new AI turn from inside the idle event.
       // A turn-starting prompt API awaits a full turn, which deadlocks the
       // TUI when called from the handler of the event that marks the prior
-      // turn done. The git pre-commit hook remains the hard enforcement gate.
+      // turn done. The git pre-commit hook remains the hard gate. `done`
+      // is the explicit completion gate: it rejects a missing or blocked
+      // stop_readiness, so a prose claim cannot bypass the verdict.
       const message = "agent-os refuses the done claim:\\n" + fingerprint +
-        "\\nFix STATE.yaml or evidence/ledger.ndjson, then stop again."
+        "\\nSet stop_readiness: ready and fix STATE.yaml or the ledger, then stop again."
       try {
         await client.app.log({ body: { service: "agent-os", level: "error",
                                        message } })
@@ -185,6 +188,53 @@ def _pre_compact(agentos_bin):
         "# Reminds the agent to refresh STATE.yaml. Never blocks.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
         'exec "%s" hook-pre-compact\n' % agentos_bin)
+
+
+def _detect_test_command(dest):
+    """Best-effort detection of the repo test command, or None."""
+    if os.path.isdir(os.path.join(dest, "tests")):
+        return "python3 -m unittest discover -s tests"
+    package_json = os.path.join(dest, "package.json")
+    if os.path.exists(package_json):
+        try:
+            with open(package_json) as source:
+                scripts = (json.load(source) or {}).get("scripts") or {}
+            if isinstance(scripts, dict) and scripts.get("test"):
+                return "npm test"
+        except (OSError, ValueError):
+            pass
+    makefile = os.path.join(dest, "Makefile")
+    if os.path.exists(makefile):
+        try:
+            with open(makefile) as source:
+                for line in source:
+                    if line.startswith("test:") or line.startswith("test "):
+                        return "make test"
+        except OSError:
+            pass
+    return None
+
+
+def _verification_config(dest, agentos_bin):
+    """Build policies/verification.yaml, detecting common commands."""
+    tests = _detect_test_command(dest)
+    # The agentos all command is the repo-conformance check; quote the bin
+    # path so a path with spaces still runs.
+    policy = "%s all" % shlex.quote(agentos_bin)
+    tests_line = ("  tests: " + json.dumps(tests)) if tests else "  tests: null"
+    lines = [
+        "# Verification commands (agentos verify executes these and writes",
+        "# the result into STATE.yaml verification_status). Each is optional;",
+        "# a null or omitted line marks that verifier unavailable (status n/a).",
+        "commands:",
+        "  format: null",
+        "  compile: null",
+        tests_line,
+        "  policy: " + json.dumps(policy),
+        "  security: null",
+        "timeout: 600",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def _write_if_absent(path, content, report, executable=False):
@@ -249,6 +299,8 @@ def run_init(dest, agentos_root, report=None):
                      _pre_compact(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".opencode", "plugins", "agentos.js"),
                      _opencode_plugin(agentos_bin), report)
+    _write_if_absent(os.path.join(dest, "policies", "verification.yaml"),
+                     _verification_config(dest, agentos_bin), report)
     settings_written = _write_if_absent(
         os.path.join(dest, ".claude", "settings.json"),
         _settings_snippet() + "\n", report)

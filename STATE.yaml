@@ -1,49 +1,73 @@
-task_id: ci-github-actions
-goal: Add GitHub Actions CI for tests and agent-os self-validation, closing issue #5
+task_id: verify-completion-gate
+goal: Close issues #8 and #9 - add agentos done (completion gate that cannot be bypassed) and agentos verify (execute configured commands, derive status from exit codes)
 risk_class: reversible
-scope_in: [.github/workflows/ci.yml, README.md, STATE.yaml, evidence/ledger.ndjson]
-scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas, agentos, bin, examples, policies]
+scope_in: [agentos/hooks.py, agentos/cli.py, agentos/initcmd.py, agentos/verify.py, tests/, templates/AGENTS.md, .opencode/plugins/agentos.js, policies/verification.yaml, README.md, SPEC.md, STATE.yaml, evidence/ledger.ndjson, AGENTS.md]
+scope_out: [ROADMAP.md, WHITEPAPER.md, schemas/]
 acceptance_criteria:
-  - CI runs on pull requests and the default branch
-  - unit tests run successfully in CI
-  - agentos all runs successfully in CI
-  - the JavaScript adapter syntax is checked in CI
-  - workflow failures are visible as named status checks
-  - CI is documented in the README
-  - the full test suite passes and agentos all exits 0 on the repo
+  - a completion claim always invokes the verification gate (agentos done)
+  - missing readiness state cannot silently allow a done claim
+  - unsupported completion claims are rejected with actionable reasons
+  - the README accurately describes the completion guarantee
+  - tests cover omitted malformed blocked and ready states across adapters
+  - verification commands are configurable per repository in policies/verification.yaml
+  - agentos init detects or configures common project commands
+  - status fields are generated from command results not trusted assertions
+  - command exit code timestamp and artifact hash are recorded in the evidence ledger
+  - timeouts and missing commands have explicit behavior
+  - tests cover pass fail timeout and unavailable verifier states
+  - the full test suite passes and agentos all exits 0
 confirmed_facts:
-  - fact: the repo had no GitHub Actions workflow before this change
-    evidence_ref: ls .github/workflows showed no such directory
-  - fact: .github/workflows/ci.yml runs unit tests, agentos all, and node --check on push to main and pull requests
-    evidence_ref: ci.yml defines validate job (matrix 3.9/3.11/3.13) and adapter-syntax job
-  - fact: the full test suite passes and agentos all exits 0 with the workflow present
-    evidence_ref: python3 -m unittest discover -s tests ran 136 tests OK; ./bin/agentos all exit 0
-  - fact: CI is documented in README.md
-    evidence_ref: README.md Continuous integration section
-  - fact: CI runs green on the PR with all four named status checks passing
-    evidence_ref: gh pr checks 32 shows adapter syntax (node) and validate (python 3.9/3.11/3.13) all pass
+  - fact: agentos done always runs the verdict gate; missing blocked or malformed stop_readiness is rejected with an actionable reason (exit 2)
+    evidence_ref: agentos/hooks.py run_done lines 184-241; tests/test_hook_commands.py TestHookDone
+  - fact: agentos verify runs configured commands and derives status from exit codes; timeout and not-runnable count as fail; null or omitted counts as n/a
+    evidence_ref: agentos/verify.py run_verify; tests/test_verify.py TestVerify
+  - fact: verify records command exit_code timestamp and output hash in evidence/ledger.ndjson using only schema-allowed keys (claim status evidence_ref source_type ts verifier hash)
+    evidence_ref: agentos/verify.py _ledger_record; schemas/evidence.schema.json
+  - fact: verify writes derived status back into STATE.yaml verification_status preserving all other fields via scoped text replacement with full-rewrite fallback
+    evidence_ref: agentos/verify.py _writeback_status _replace_block _full_rewrite; tests/test_verify.py test_preserves_other_state_fields
+  - fact: agentos init detects test commands (unittest npm test make test) and wires policy to the agentos all command; writes policies/verification.yaml when absent
+    evidence_ref: agentos/initcmd.py _detect_test_command _verification_config; tests/test_init.py test_writes_verification_config test_verification_config_not_overwritten
+  - fact: the opencode plugin ready-branch calls done --run-tests instead of hook-stop; isClaimingDone pre-filter and advisory toast+log retained
+    evidence_ref: .opencode/plugins/agentos.js event handler; agentos/initcmd.py _OPENCODE_PLUGIN; tests/test_init.py test_writes_opencode_plugin asserts done in body
+  - fact: SPEC.md amended (user-approved 2026-07-30) with the completion protocol paragraph (section 2.2) and done/verify subcommand entries (section 4) and the opencode idle row (section 3)
+    evidence_ref: SPEC.md lines 106-113 279-298 200
+  - fact: all 158 tests pass and agentos all exits 0
+    evidence_ref: python3 -m unittest discover -s tests -> Ran 158 tests OK; ./bin/agentos all exit 0
 assumptions: []
 decisions:
-  - decision: matrix covers Python 3.9, 3.11, and 3.13
-    rationale: the README states Python 3.8 or later; 3.9 is the oldest ubuntu-latest ships cleanly, 3.13 is current, 3.11 is a midpoint
-  - decision: node --check runs in its own job, not inside the python matrix
-    rationale: the adapter is a static JS file and its parse check does not depend on the python version; one node job avoids redundant runs
-  - decision: fail-fast is false on the matrix
-    rationale: a failure on one python version should not hide a failure on another; all versions report
-  - decision: concurrency cancels superseded runs on the same ref
-    rationale: a fast push should not queue behind a slow one on the same branch
+  - decision: verification config lives in policies/verification.yaml validated by code not in schemas/ so no schemas/ edit is needed
+    rationale: matches the existing pattern for path-policy and dependency-policy; keeps the approval-gated schemas/ untouched
+  - decision: done runs verify before the verdict gate when a config is present; --no-verify trusts self-reported status
+    rationale: status should come from execution by default; --no-verify preserves the self-reported path for fresh repos or quick checks
+  - decision: a missing verification config is a no-op (exit 0) not an error
+    rationale: fresh repos have no verifiers wired; verify must not fail a repo that just ran init
+  - decision: the CLI --timeout overrides the config timeout
+    rationale: an operator can shorten a run without editing the file
+  - decision: no templates/policies/verification.yaml skeleton is shipped
+    rationale: init writes the detected config; shipping a skeleton would make _write_if_absent skip the detected one. init writes nulls where undetected which is the same shape
 failed_hypotheses: []
 open_questions: []
 changed_files:
-  - .github/workflows/ci.yml
+  - agentos/verify.py
+  - agentos/hooks.py
+  - agentos/cli.py
+  - agentos/initcmd.py
+  - .opencode/plugins/agentos.js
+  - templates/AGENTS.md
+  - policies/verification.yaml
+  - AGENTS.md
   - README.md
+  - SPEC.md
+  - tests/test_hook_commands.py
+  - tests/test_init.py
+  - tests/test_verify.py
   - STATE.yaml
   - evidence/ledger.ndjson
 verification_status:
-  format: pass
-  compile: pass
+  format: n/a
+  compile: n/a
   tests: pass
   policy: pass
   security: n/a
-next_action: user reviews and merges PR #32 (https://github.com/shafayat1004/agent-os/pull/32); CI on the PR is green
+next_action: commit and open the PR; CI runs on the PR to confirm it is green
 stop_readiness: ready

@@ -93,6 +93,7 @@ class TestInit(unittest.TestCase):
             # remains the authoritative readiness check.
             self.assertIn("isClaimingDone", body)
             self.assertIn("stop_readiness", body)
+            self.assertIn("done", body)
 
     def test_opencode_plugin_not_overwritten(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -144,6 +145,32 @@ class TestInit(unittest.TestCase):
             run_init(temp_dir, _ROOT)
             with open(os.path.join(temp_dir, "CLAUDE.md")) as pointer_file:
                 self.assertEqual(pointer_file.read(), "keep me")
+
+    def test_writes_verification_config(self):
+        from agentos import yaml_min
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.makedirs(os.path.join(temp_dir, "tests"))
+            run_init(temp_dir, _ROOT)
+            config_path = os.path.join(temp_dir, "policies",
+                                        "verification.yaml")
+            self.assertTrue(os.path.exists(config_path), config_path)
+            with open(config_path) as config_file:
+                config = yaml_min.load(config_file.read())
+            self.assertIn("commands", config)
+            self.assertEqual(config["commands"]["tests"],
+                             "python3 -m unittest discover -s tests")
+            self.assertIn("all", config["commands"]["policy"])
+
+    def test_verification_config_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.makedirs(os.path.join(temp_dir, "policies"))
+            config_path = os.path.join(temp_dir, "policies",
+                                        "verification.yaml")
+            with open(config_path, "w") as config_file:
+                config_file.write("# my custom config\n")
+            run_init(temp_dir, _ROOT)
+            with open(config_path) as config_file:
+                self.assertEqual(config_file.read(), "# my custom config\n")
 
     def test_settings_snippet_is_valid_json_with_hooks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
