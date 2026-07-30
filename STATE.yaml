@@ -30,5 +30,5 @@ verification_status:
   tests: pass
   policy: pass
   security: n/a
-next_action: user reviews and merges the PR
+next_action: user reviews and merges PR #31 (https://github.com/shafayat1004/agent-os/pull/31)
 stop_readiness: ready
