@@ -77,6 +77,22 @@ class TestInit(unittest.TestCase):
             self.assertIn("check-path", body)
             self.assertIn("session.idle", body)
             self.assertIn(json.dumps(summary["agentos_bin"]), body)
+            # The idle nudge must never start a new AI turn. session.prompt
+            # awaits a full turn, which deadlocks the TUI when called from
+            # the handler of the event that marks the prior turn done. The
+            # refusal is surfaced as a toast and a log line instead; the git
+            # pre-commit hook remains the hard gate.
+            self.assertNotIn("session.prompt", body)
+            self.assertNotIn("await client.session", body)
+            self.assertIn("tui.showToast", body)
+            self.assertIn("app.log", body)
+            # The idle handler must skip the validator spawn when the
+            # session is not claiming done, so a non-done turn never pays
+            # for a subprocess (or a test-suite run). A cheap regex
+            # pre-filter on STATE.yaml gates the spawn; the validator
+            # remains the authoritative readiness check.
+            self.assertIn("isClaimingDone", body)
+            self.assertIn("stop_readiness", body)
 
     def test_opencode_plugin_not_overwritten(self):
         with tempfile.TemporaryDirectory() as temp_dir:

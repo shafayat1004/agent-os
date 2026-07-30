@@ -79,8 +79,11 @@ def main(argv=None):
                                 help="test command the verdict gate runs when "
                                      "STATE sets stop_readiness to ready")
     command_parser = subparsers.add_parser("hook-post-tool")
-    command_parser.add_argument("--tool", default=None)
-    command_parser.add_argument("--target", default=None)
+    command_parser.add_argument("--tool", default=None,
+                                help="adapter mode: when --tool or --target is "
+                                     "given, the stdin payload is not read")
+    command_parser.add_argument("--target", default=None,
+                                help="adapter mode: see --tool")
     command_parser.add_argument("--trace", default="evidence/trace.ndjson")
     command_parser = subparsers.add_parser("hook-pre-compact")
     command_parser.add_argument("--state-file", default="STATE.yaml")
@@ -113,7 +116,15 @@ def main(argv=None):
         return hook_commands.run_stop(args.state_file, args.ledger_file,
                                       run_tests=args.run_tests)
     if args.cmd == "hook-post-tool":
-        return hook_commands.run_post_tool(sys.stdin.read(), args.trace,
+        # Flags mean adapter mode (the opencode plugin): never touch stdin.
+        # A harness that spawns hooks with an inherited, never-EOF stdin
+        # (opencode's Bun shell) blocks here forever otherwise, wedging the
+        # session after the first tool call. Stdin is read only on the
+        # flagless Claude Code path, which pipes the payload and closes
+        # stdin.
+        stdin_text = ("" if args.tool is not None or args.target is not None
+                      else sys.stdin.read())
+        return hook_commands.run_post_tool(stdin_text, args.trace,
                                            tool=args.tool, target=args.target)
     if args.cmd == "hook-pre-compact":
         return hook_commands.run_pre_compact(args.state_file)
