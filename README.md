@@ -111,6 +111,20 @@ agent-os runs on its own rules. This repo carries the same six
 artifacts, and `./bin/agentos all` passes here.
 `tests/test_self_governance.py` keeps that true.
 
+### Continuous integration
+
+GitHub Actions runs on every pull request and every push to `main`.
+The workflow in `.github/workflows/ci.yml` does three things:
+
+- runs the unit test suite (`python3 -m unittest discover -s tests`),
+- runs the validator on this repo (`./bin/agentos all`),
+- and checks that the opencode adapter still parses (`node --check`).
+
+Each step is a named status check, so a failure names the step that
+broke. The matrix covers Python 3.9, 3.11, and 3.13, the supported
+range. Local hooks can be skipped; CI cannot, so CI is the authority
+on repo health.
+
 To copy only the skeleton artifacts, without the wiring:
 
 ```bash
