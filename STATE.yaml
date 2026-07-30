@@ -1,34 +1,49 @@
-task_id: publish-issue-refinement
-goal: Close the visibility question as public, remove the local issue backlog, and ship the issue-refinement records on a branch with a PR
+task_id: ci-github-actions
+goal: Add GitHub Actions CI for tests and agent-os self-validation, closing issue #5
 risk_class: reversible
-scope_in: [STATE.yaml, evidence]
-scope_out: [examples, WHITEPAPER.md, SPEC.md, ROADMAP.md, schemas, agentos, bin]
+scope_in: [.github/workflows/ci.yml, README.md, STATE.yaml, evidence/ledger.ndjson]
+scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas, agentos, bin, examples, policies]
 acceptance_criteria:
-  - GitHub issue #3 is closed with the public decision recorded; issue #4 noted as unblocked
-  - agent-os-issue-backlog.md is deleted; GitHub issues are the single source of truth
-  - the branch carries STATE.yaml and evidence/ledger.ndjson and the PR is open
+  - CI runs on pull requests and the default branch
+  - unit tests run successfully in CI
+  - agentos all runs successfully in CI
+  - the JavaScript adapter syntax is checked in CI
+  - workflow failures are visible as named status checks
+  - CI is documented in the README
   - the full test suite passes and agentos all exits 0 on the repo
 confirmed_facts:
-  - fact: issue #3 closed with the public decision recorded; issue #4 marked unblocked
-    evidence_ref: gh issue view 3 --json state returns CLOSED; comment on #4
-  - fact: agent-os-issue-backlog.md deleted; GitHub issues are the single source of truth
-    evidence_ref: ls of repo root; file was untracked so no git diff results
-  - fact: 136 of 136 tests pass and agentos all exits 0 on the repo
-    evidence_ref: python3 -m unittest discover -s tests and ./bin/agentos all output
+  - fact: the repo had no GitHub Actions workflow before this change
+    evidence_ref: ls .github/workflows showed no such directory
+  - fact: .github/workflows/ci.yml runs unit tests, agentos all, and node --check on push to main and pull requests
+    evidence_ref: ci.yml defines validate job (matrix 3.9/3.11/3.13) and adapter-syntax job
+  - fact: the full test suite passes and agentos all exits 0 with the workflow present
+    evidence_ref: python3 -m unittest discover -s tests ran 136 tests OK; ./bin/agentos all exit 0
+  - fact: CI is documented in README.md
+    evidence_ref: README.md Continuous integration section
+  - fact: CI runs green on the PR with all four named status checks passing
+    evidence_ref: gh pr checks 32 shows adapter syntax (node) and validate (python 3.9/3.11/3.13) all pass
 assumptions: []
 decisions:
-  - decision: no documentation written for the public-visibility decision; the closed GitHub issue is the record
-    rationale: explicit user instruction - the decision is executed by closing #3, not documented in repo prose
+  - decision: matrix covers Python 3.9, 3.11, and 3.13
+    rationale: the README states Python 3.8 or later; 3.9 is the oldest ubuntu-latest ships cleanly, 3.13 is current, 3.11 is a midpoint
+  - decision: node --check runs in its own job, not inside the python matrix
+    rationale: the adapter is a static JS file and its parse check does not depend on the python version; one node job avoids redundant runs
+  - decision: fail-fast is false on the matrix
+    rationale: a failure on one python version should not hide a failure on another; all versions report
+  - decision: concurrency cancels superseded runs on the same ref
+    rationale: a fast push should not queue behind a slow one on the same branch
 failed_hypotheses: []
 open_questions: []
 changed_files:
+  - .github/workflows/ci.yml
+  - README.md
   - STATE.yaml
   - evidence/ledger.ndjson
 verification_status:
-  format: n/a
-  compile: n/a
+  format: pass
+  compile: pass
   tests: pass
   policy: pass
   security: n/a
-next_action: user reviews and merges PR #31 (https://github.com/shafayat1004/agent-os/pull/31)
+next_action: user reviews and merges PR #32 (https://github.com/shafayat1004/agent-os/pull/32); CI on the PR is green
 stop_readiness: ready
