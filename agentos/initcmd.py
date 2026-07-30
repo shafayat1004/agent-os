@@ -110,7 +110,7 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       if (event.type !== "session.idle") return
       const sessionID = event.properties && event.properties.sessionID
       if (!sessionID) return
-// Not a done claim: skip the validator spawn entirely so idle
+      // Not a done claim: skip the validator spawn entirely so idle
       // stays cheap while stop_readiness is blocked (the common case;
       // templates ship blocked and you flip to ready only at task end).
       if (!isClaimingDone(root + "/STATE.yaml")) return

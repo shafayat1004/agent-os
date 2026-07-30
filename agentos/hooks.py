@@ -197,7 +197,10 @@ def run_done(state_file, ledger_file, run_tests=None, verify_config=None,
     agent needs to take.
     Layer 3 (verifiers, when configured): when a verification config is
     present, run it first so the verdict comes from execution, not
-    self-reported status.
+    self-reported status. A nonzero exit from the verifiers (a failed
+    command or a config error) refuses the claim; the gate never relies
+    on the STATE writeback succeeding. The config timeout applies, same
+    as on the `agentos verify` path.
     Layer 4 (verdict): non-empty acceptance_criteria, every
     verification_status field pass or n/a, and the test command, when
     given, exits 0.
@@ -233,7 +236,21 @@ def run_done(state_file, ledger_file, run_tests=None, verify_config=None,
         return 2
     if verify_config and os.path.exists(verify_config):
         from agentos.verify import run_verify
-        run_verify(verify_config, state_file, ledger_file, err=err)
+        # timeout None: the config timeout applies, same as the verify CLI.
+        verify_exit = run_verify(verify_config, state_file, ledger_file,
+                                 timeout=None, err=err)
+        if verify_exit == 2:
+            print("agent-os: done claim refused: the verification config "
+                  "did not load (see the error above). Fix %s, or pass "
+                  "--no-verify to trust self-reported status."
+                  % verify_config, file=err)
+            return 2
+        if verify_exit != 0:
+            print("agent-os: done claim refused: a configured verifier "
+                  "failed (see the summary above). Fix the failure, or "
+                  "pass --no-verify to trust self-reported status.",
+                  file=err)
+            return 2
         state_data = _read_state_fields(state_file)
         if not isinstance(state_data, dict):
             state_data = {}

@@ -135,7 +135,10 @@ verification gate:
 - `stop_readiness` must be `ready`. A missing or `blocked` value is
   rejected with an actionable reason, not silently allowed.
 - `acceptance_criteria` must be non-empty.
-- Every `verification_status` field must be `pass` or `n/a`.
+- Every `verification_status` field must be `pass` or `n/a`. When a
+  `policies/verification.yaml` is present, `done` runs `verify` first;
+  a failed verifier or a config that cannot load refuses the claim, it
+  never falls back to the self-reported value.
 - The test command, when given with `--run-tests CMD`, must exit 0.
 
 A prose claim is not a done claim. The harness stop event
@@ -155,7 +158,8 @@ a config is present, so the verdict comes from execution, not a
 self-reported value. `agentos init` detects common test commands
 (unittest, npm test, make test) and wires the repo-conformance check as
 `policy`. A `null` or omitted command marks that verifier unavailable
-(status `n/a`). A timeout or a non-runnable command is a `fail`.
+(status `n/a`); a command value that is not a string is a config error.
+A timeout or a non-runnable command is a `fail`.
 
 To copy only the skeleton artifacts, without the wiring:
 

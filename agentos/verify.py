@@ -66,13 +66,12 @@ def _run_one(name, command, timeout, err):
     """Run one verifier command. Returns (status, evidence_ref, hash, summary).
 
     status is one of _VERDICT_PASS, _VERDICT_FAIL, _VERDICT_NA. A null or
-    empty command means unavailable (n/a). A nonzero exit, a timeout, or a
-    command that cannot start all count as a fail; the evidence_ref records
-    which one happened so the ledger stays auditable.
+    empty command means unavailable (n/a); a non-string command is
+    rejected as a config error by the caller. A nonzero exit, a timeout,
+    or a command that cannot start all count as a fail; the evidence_ref
+    records which one happened so the ledger stays auditable.
     """
     if not command:
-        return (_VERDICT_NA, "no command configured", "", "n/a  (no command)")
-    if not isinstance(command, str):
         return (_VERDICT_NA, "no command configured", "", "n/a  (no command)")
     try:
         completed = subprocess.run(shlex.split(command),
@@ -289,7 +288,11 @@ def run_verify(config_path, state_file, ledger_file, timeout=600, err=None):
     any_fail = False
     for name in _VERIFIERS:
         command = commands.get(name)
-        if command is None or (isinstance(command, str) and command.strip() == ""):
+        if command is not None and not isinstance(command, str):
+            print("agent-os: verification command '%s' is not a string; "
+                  "quote the command or set it to null" % name, file=err)
+            return 2
+        if command is None or command.strip() == "":
             status, evidence_ref, artifact, summary = (
                 _VERDICT_NA, "no command configured", "", "n/a  (no command)")
         else:

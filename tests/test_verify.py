@@ -147,6 +147,62 @@ class TestVerify(unittest.TestCase):
             self.assertEqual(record["status"], "confirmed")
             self.assertTrue(record["ts"])
 
+    def test_non_string_command_is_config_error(self):
+        # A command value that is not a string (here an integer, a likely
+        # config typo) is a config error, not a silent n/a.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, {"tests": _PASS_COMMAND})
+            config_path = os.path.join(temp_dir, "policies",
+                                       "verification.yaml")
+            with open(config_path, "w") as out:
+                out.write("commands:\n  tests: 123\ntimeout: 60\n")
+            completed = _run(["verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("not a string", completed.stderr)
+
+    def test_full_rewrite_fallback_preserves_fields(self):
+        # A verification_status block that misses a field cannot be patched
+        # in place, so the whole file is rewritten from the parsed mapping.
+        # Every other field must survive.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state = (
+                "task_id: t1\n"
+                "goal: keep me\n"
+                "risk_class: reversible\n"
+                "acceptance_criteria: [done]\n"
+                "confirmed_facts:\n"
+                "  - fact: a fact stays\n"
+                "    evidence_ref: ref\n"
+                "verification_status:\n"
+                "  format: pending\n"
+                "  compile: pending\n"
+                "  tests: pending\n"
+                "  policy: pending\n"
+                "next_action: n\n"
+                "stop_readiness: blocked\n"
+            )
+            with open(os.path.join(temp_dir, "STATE.yaml"), "w") as out:
+                out.write(state)
+            os.makedirs(os.path.join(temp_dir, "evidence"), exist_ok=True)
+            with open(os.path.join(temp_dir, "evidence", "ledger.ndjson"),
+                      "w") as out:
+                out.write("")
+            os.makedirs(os.path.join(temp_dir, "policies"), exist_ok=True)
+            with open(os.path.join(temp_dir, "policies",
+                                   "verification.yaml"), "w") as out:
+                out.write(_config({"tests": _PASS_COMMAND}))
+            completed = _run(["verify"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            with open(os.path.join(temp_dir, "STATE.yaml")) as state_file:
+                after = yaml_min.load(state_file.read())
+            self.assertEqual(after["goal"], "keep me")
+            self.assertEqual(after["stop_readiness"], "blocked")
+            self.assertEqual(after["confirmed_facts"][0]["fact"],
+                             "a fact stays")
+            self.assertEqual(after["verification_status"]["tests"], "pass")
+            # The missing field was added back with its derived value.
+            self.assertEqual(after["verification_status"]["security"], "n/a")
+
     def test_preserves_other_state_fields(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             state = (
