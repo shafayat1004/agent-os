@@ -1,36 +1,34 @@
-task_id: opencode-post-tool-stdin-hang
-goal: Fix the opencode freeze after the first prompt - hook-post-tool read stdin unconditionally and wedged any harness that spawns it with a held-open stdin
+task_id: publish-issue-refinement
+goal: Close the visibility question as public, remove the local issue backlog, and ship the issue-refinement records on a branch with a PR
 risk_class: reversible
-scope_in: [agentos, tests, STATE.yaml, evidence]
-scope_out: [examples, WHITEPAPER.md, SPEC.md, ROADMAP.md, schemas]
+scope_in: [STATE.yaml, evidence]
+scope_out: [examples, WHITEPAPER.md, SPEC.md, ROADMAP.md, schemas, agentos, bin]
 acceptance_criteria:
-  - hook-post-tool skips the stdin read when --tool or --target is given (adapter mode) and reads stdin only on the flagless Claude Code path
-  - a regression test holds the child stdin pipe open and asserts the hook still exits
+  - GitHub issue #3 is closed with the public decision recorded; issue #4 noted as unblocked
+  - agent-os-issue-backlog.md is deleted; GitHub issues are the single source of truth
+  - the branch carries STATE.yaml and evidence/ledger.ndjson and the PR is open
   - the full test suite passes and agentos all exits 0 on the repo
 confirmed_facts:
-  - fact: hook-post-tool exits in 0.04s with its stdin pipe held open (previously blocked forever on sys.stdin.read)
-    evidence_ref: tests/test_hook_commands.py TestHookPostTool.test_flags_mode_does_not_block_on_held_open_stdin plus a manual Popen probe
-  - fact: flag mode ignores the stdin payload entirely; the flagless Claude Code path still parses it
-    evidence_ref: tests/test_hook_commands.py TestHookPostTool.test_flags_mode_ignores_stdin_payload and test_stdin_payload_supplies_fields
+  - fact: issue #3 closed with the public decision recorded; issue #4 marked unblocked
+    evidence_ref: gh issue view 3 --json state returns CLOSED; comment on #4
+  - fact: agent-os-issue-backlog.md deleted; GitHub issues are the single source of truth
+    evidence_ref: ls of repo root; file was untracked so no git diff results
   - fact: 136 of 136 tests pass and agentos all exits 0 on the repo
     evidence_ref: python3 -m unittest discover -s tests and ./bin/agentos all output
 assumptions: []
 decisions:
-  - decision: flag presence selects the input contract - any of --tool or --target means adapter mode and stdin is never read
-    rationale: per-field merging requires reading stdin, which is exactly what hangs under an inherited, never-EOF stdin (opencode's Bun shell); the flagless Claude Code path is unchanged because that harness pipes the payload and closes stdin
-failed_hypotheses:
-  - hypothesis: the session.idle session.prompt nudge (fixed in the v0.3 working tree) was the whole freeze
-    failure_signal: all four frozen opencode runs stalled mid-turn right after the first tool call, before any idle event fired; the tool.execute.after hook spawn was the blocker
-open_questions:
-  - hook-pre-tool still reads stdin unconditionally; harmless today because its only harness (Claude Code PreToolUse) pipes and closes stdin, but the same adapter-mode guard applies if a second harness ever calls it
+  - decision: no documentation written for the public-visibility decision; the closed GitHub issue is the record
+    rationale: explicit user instruction - the decision is executed by closing #3, not documented in repo prose
+failed_hypotheses: []
+open_questions: []
 changed_files:
-  - agentos/cli.py
-  - tests/test_hook_commands.py
+  - STATE.yaml
+  - evidence/ledger.ndjson
 verification_status:
-  format: pass
-  compile: pass
+  format: n/a
+  compile: n/a
   tests: pass
   policy: pass
   security: n/a
-next_action: user restarts opencode in the agent-os repo to confirm the first prompt no longer freezes, then reviews and commits the pending v0.3 plus bugfix changes
-stop_readiness: blocked
+next_action: user reviews and merges the PR
+stop_readiness: ready
