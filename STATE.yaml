@@ -33,6 +33,8 @@ confirmed_facts:
     evidence_ref: SPEC.md lines 106-113 279-298 200
   - fact: all 158 tests pass and agentos all exits 0
     evidence_ref: python3 -m unittest discover -s tests -> Ran 158 tests OK; ./bin/agentos all exit 0
+  - fact: CI on the PR is green with all four named status checks passing
+    evidence_ref: gh pr checks 33 shows adapter syntax (node) and validate (python 3.9/3.11/3.13) all pass
 assumptions: []
 decisions:
   - decision: verification config lives in policies/verification.yaml validated by code not in schemas/ so no schemas/ edit is needed
@@ -69,5 +71,5 @@ verification_status:
   tests: pass
   policy: pass
   security: n/a
-next_action: commit and open the PR; CI runs on the PR to confirm it is green
+next_action: user reviews and merges PR #33 (https://github.com/shafayat1004/agent-os/pull/33); CI on the PR is green
 stop_readiness: ready
