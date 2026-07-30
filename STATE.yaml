@@ -20,6 +20,8 @@ confirmed_facts:
     evidence_ref: python3 -m unittest discover -s tests ran 136 tests OK; ./bin/agentos all exit 0
   - fact: CI is documented in README.md
     evidence_ref: README.md Continuous integration section
+  - fact: CI runs green on the PR with all four named status checks passing
+    evidence_ref: gh pr checks 32 shows adapter syntax (node) and validate (python 3.9/3.11/3.13) all pass
 assumptions: []
 decisions:
   - decision: matrix covers Python 3.9, 3.11, and 3.13
@@ -43,5 +45,5 @@ verification_status:
   tests: pass
   policy: pass
   security: n/a
-next_action: user reviews and merges the PR; CI runs on the PR to confirm it is green
+next_action: user reviews and merges PR #32 (https://github.com/shafayat1004/agent-os/pull/32); CI on the PR is green
 stop_readiness: ready
