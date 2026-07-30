@@ -40,10 +40,28 @@ _OPENCODE_PLUGIN = """// agent-os opencode plugin (installed by `agentos init`).
 // trace line after each tool call.
 // Resolution: a vendored bin/agentos in this repo wins. Otherwise the
 // shared checkout recorded below is used. null means this repo is vendored.
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 const SHARED = %s
 const EDIT_TOOLS = new Set(["edit", "write", "multiedit", "patch"])
+
+// Cheap fast-path for the idle handler: read the stop_readiness line
+// straight out of STATE.yaml with a regex, so a non-done turn never
+// spawns the validator. The validator itself remains authoritative and
+// re-checks readiness with its own yaml parser; this is only a
+// pre-filter. Fail-open to enforcement: a missing or unreadable STATE,
+// or a missing field, falls through to the validator rather than
+// skipping it.
+const isClaimingDone = (stateFile) => {
+  try {
+    const match = readFileSync(stateFile, "utf8")
+      .match(/^stop_readiness:\\s*(\\S+)/m)
+    if (!match) return true  // no field: let the validator decide
+    return match[1].trim().toLowerCase() === "ready"
+  } catch (error) {
+    return true  // unreadable/missing: let the validator fail open
+  }
+}
 
 export const AgentOS = async ({ $, client, directory, worktree }) => {
   const root = worktree || directory
@@ -91,21 +109,28 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       if (event.type !== "session.idle") return
       const sessionID = event.properties && event.properties.sessionID
       if (!sessionID) return
+      // Not a done claim: skip the validator spawn entirely so idle
+      // stays cheap while stop_readiness is blocked (the common case;
+      // templates ship blocked and you flip to ready only at task end).
+      if (!isClaimingDone(root + "/STATE.yaml")) return
       const { code, text } = await run(["hook-stop"])
       if (code !== 2) return
       const fingerprint = text.trim()
-      if (nudged.get(sessionID) === fingerprint) return  // no repeat loops
+      if (nudged.get(sessionID) === fingerprint) return  // one toast per failure
       nudged.set(sessionID, fingerprint)
+      // Advisory only: never start a new AI turn from inside the idle event.
+      // A turn-starting prompt API awaits a full turn, which deadlocks the
+      // TUI when called from the handler of the event that marks the prior
+      // turn done. The git pre-commit hook remains the hard enforcement gate.
+      const message = "agent-os refuses the done claim:\\n" + fingerprint +
+        "\\nFix STATE.yaml or evidence/ledger.ndjson, then stop again."
       try {
-        await client.session.prompt({
-          path: { id: sessionID },
-          body: { parts: [{ type: "text", text:
-            "agent-os refuses the done claim:\\n" + fingerprint +
-            "\\nFix STATE.yaml or evidence/ledger.ndjson, then stop again." }] },
-        })
-      } catch (error) {
-        // Best effort: the git pre-commit hook still enforces.
-      }
+        await client.app.log({ body: { service: "agent-os", level: "error",
+                                       message } })
+      } catch (error) { /* best effort: the log may be unavailable */ }
+      try {
+        await client.tui.showToast({ body: { message, variant: "error" } })
+      } catch (error) { /* TUI may be headless; the log already recorded it */ }
     },
   }
 }

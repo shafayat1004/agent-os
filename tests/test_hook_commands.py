@@ -323,6 +323,49 @@ class TestHookPostTool(unittest.TestCase):
             lines = self._trace_lines(temp_dir)
             self.assertEqual(lines[0]["target"], "src/b.py")
 
+    def test_flags_mode_ignores_stdin_payload(self):
+        # Flag mode is the adapter contract: once --tool or --target is
+        # given, stdin is not consulted at all (see the hang regression
+        # test below for why reading it is unsafe).
+        with tempfile.TemporaryDirectory() as temp_dir:
+            payload = json.dumps({"tool_name": "Write",
+                                  "tool_input": {"file_path": "docs/x.md"}})
+            completed = _run(["hook-post-tool", "--tool", "edit",
+                              "--target", "src/a.py"], temp_dir, payload)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            lines = self._trace_lines(temp_dir)
+            self.assertEqual(lines[0]["tool"], "edit")
+            self.assertEqual(lines[0]["target"], "src/a.py")
+
+    def test_flags_mode_does_not_block_on_held_open_stdin(self):
+        # Regression for the opencode freeze: the CLI used to call
+        # sys.stdin.read() unconditionally, so a harness that spawns hooks
+        # with an inherited, never-EOF stdin (opencode's Bun shell) wedged
+        # the session after the first tool call. Simulate that harness by
+        # holding the child's stdin pipe open from the parent.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            process = subprocess.Popen(
+                [_AGENTOS, "hook-post-tool", "--tool", "edit",
+                 "--target", "src/a.py"],
+                cwd=temp_dir, stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                self.fail("hook-post-tool blocked on a held-open stdin")
+            finally:
+                for stream in (process.stdin, process.stdout,
+                               process.stderr):
+                    if stream:
+                        stream.close()
+                if process.poll() is None:
+                    process.kill()
+            self.assertEqual(process.returncode, 0)
+            lines = self._trace_lines(temp_dir)
+            self.assertEqual(len(lines), 1)
+            self.assertEqual(lines[0]["tool"], "edit")
+
     def test_malformed_input_writes_nothing_and_allows(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             completed = _run(["hook-post-tool"], temp_dir, "not json at all")

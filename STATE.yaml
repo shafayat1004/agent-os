@@ -1,64 +1,36 @@
-task_id: v0.3-verdict-gates-and-trace-hooks
-goal: Close the whitepaper on_stop gap (verdict gates plus optional test run) and add the post-tool trace and pre-compact advisory hooks
+task_id: opencode-post-tool-stdin-hang
+goal: Fix the opencode freeze after the first prompt - hook-post-tool read stdin unconditionally and wedged any harness that spawns it with a held-open stdin
 risk_class: reversible
-scope_in: [agentos, tests, hooks, templates, schemas, SPEC.md, ROADMAP.md, README.md, AGENTS.md, .claude, .opencode, .gitignore, STATE.yaml, evidence]
-scope_out: [examples, WHITEPAPER.md]
+scope_in: [agentos, tests, STATE.yaml, evidence]
+scope_out: [examples, WHITEPAPER.md, SPEC.md, ROADMAP.md, schemas]
 acceptance_criteria:
-  - hook-stop refuses a done claim (exit 2) when stop_readiness is ready and acceptance_criteria is empty or any verification_status field is fail or pending
-  - hook-stop --run-tests runs the configured command at a ready claim and refuses on a nonzero exit
-  - hook-post-tool appends tool-call records to evidence/trace.ndjson and never blocks
-  - hook-pre-compact prints the STATE refresh reminder and never blocks
-  - init wires PostToolUse and PreCompact wrappers, settings entries, and the opencode tool.execute.after trace
+  - hook-post-tool skips the stdin read when --tool or --target is given (adapter mode) and reads stdin only on the flagless Claude Code path
+  - a regression test holds the child stdin pipe open and asserts the hook still exits
   - the full test suite passes and agentos all exits 0 on the repo
 confirmed_facts:
-  - fact: the verdict gate fires only on stop_readiness ready, so mid-task stops and clarification pauses are never blocked
-    evidence_ref: tests/test_hook_commands.py TestHookStopVerdict (blocked and absent cases exit 0)
-  - fact: a ready claim with pending or fail verdicts, empty criteria, or a failing --run-tests command exits 2
-    evidence_ref: tests/test_hook_commands.py TestHookStopVerdict plus fresh-init smoke run
-  - fact: hook-post-tool and hook-pre-compact exit 0 on malformed input and unwritable paths
-    evidence_ref: tests/test_hook_commands.py TestHookPostTool and TestHookPreCompact
-  - fact: init writes all four Claude Code wrappers, the settings entries, and the opencode trace handler; generated plugin parses under node --check
-    evidence_ref: tests/test_init.py plus fresh-init smoke run
-  - fact: 134 of 134 tests pass and agentos all exits 0 on the repo
+  - fact: hook-post-tool exits in 0.04s with its stdin pipe held open (previously blocked forever on sys.stdin.read)
+    evidence_ref: tests/test_hook_commands.py TestHookPostTool.test_flags_mode_does_not_block_on_held_open_stdin plus a manual Popen probe
+  - fact: flag mode ignores the stdin payload entirely; the flagless Claude Code path still parses it
+    evidence_ref: tests/test_hook_commands.py TestHookPostTool.test_flags_mode_ignores_stdin_payload and test_stdin_payload_supplies_fields
+  - fact: 136 of 136 tests pass and agentos all exits 0 on the repo
     evidence_ref: python3 -m unittest discover -s tests and ./bin/agentos all output
 assumptions: []
 decisions:
-  - decision: the verdict gate triggers on the stop_readiness field, not on every stop
-    rationale: Stop fires on every turn end; gating unconditionally would block mid-task clarification pauses, which the whitepaper protects
-  - decision: --run-tests is adapter wiring, not a validator default
-    rationale: only the repo knows its test command; greenfield inits ship without it and keep the self-reported verdict layer
-  - decision: the post-tool hook records a raw trace line, not a ledger entry
-    rationale: fact extraction is model work; the trace is deterministic instrumentation that feeds the context-accounting roadmap gate
-  - decision: on_retry and context-load hooks stay unbuilt
-    rationale: no harness exposes those events; they belong to the workflow state-machine and context-accounting roadmap items
-failed_hypotheses: []
-open_questions: []
+  - decision: flag presence selects the input contract - any of --tool or --target means adapter mode and stdin is never read
+    rationale: per-field merging requires reading stdin, which is exactly what hangs under an inherited, never-EOF stdin (opencode's Bun shell); the flagless Claude Code path is unchanged because that harness pipes the payload and closes stdin
+failed_hypotheses:
+  - hypothesis: the session.idle session.prompt nudge (fixed in the v0.3 working tree) was the whole freeze
+    failure_signal: all four frozen opencode runs stalled mid-turn right after the first tool call, before any idle event fired; the tool.execute.after hook spawn was the blocker
+open_questions:
+  - hook-pre-tool still reads stdin unconditionally; harmless today because its only harness (Claude Code PreToolUse) pipes and closes stdin, but the same adapter-mode guard applies if a second harness ever calls it
 changed_files:
-  - agentos/hooks.py
   - agentos/cli.py
-  - agentos/initcmd.py
-  - schemas/task-state.schema.json
-  - templates/STATE.yaml
-  - templates/AGENTS.md
-  - hooks/stop-check
-  - hooks/post-tool
-  - hooks/pre-compact
   - tests/test_hook_commands.py
-  - tests/test_init.py
-  - tests/test_hooks.py
-  - SPEC.md
-  - ROADMAP.md
-  - README.md
-  - AGENTS.md
-  - .claude/settings.json
-  - .opencode/plugins/agentos.js
-  - .gitignore
-  - STATE.yaml
 verification_status:
   format: pass
   compile: pass
   tests: pass
   policy: pass
   security: n/a
-next_action: await the next task
-stop_readiness: ready
+next_action: user restarts opencode in the agent-os repo to confirm the first prompt no longer freezes, then reviews and commits the pending v0.3 plus bugfix changes
+stop_readiness: blocked
