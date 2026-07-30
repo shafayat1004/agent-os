@@ -4,6 +4,7 @@
 - build: (fill in the build command)
 - test: (fill in the test command)
 - validate: agentos all
+- verify: agentos verify
 
 ## Invariants
 - Build and tests are green before any done claim.
@@ -29,5 +30,6 @@
 - At task start, fill STATE.yaml: task_id, goal, next_action. Keep it current as you work.
 - Append one line to evidence/ledger.ndjson for each verified step: the claim, the command or file that proves it, the timestamp.
 - Before any done claim, run `agentos all`. Every check must pass.
-- To claim done, set stop_readiness: ready in STATE.yaml. The stop hook then grades verification_status and, when wired, runs the test command.
+- To claim done, set stop_readiness: ready in STATE.yaml, then run `agentos done`. It always runs the verdict gate: a missing or blocked stop_readiness is rejected, not silently allowed. A prose claim is not a done claim.
+- `agentos verify` runs the commands in policies/verification.yaml and writes the derived status into STATE.yaml, so the verdict comes from execution, not a self-reported value. `agentos done` runs verify first when a config is present.
 - Keep this file under 150 nonblank lines. Move detail to docs and link to it.

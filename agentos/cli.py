@@ -87,6 +87,30 @@ def main(argv=None):
     command_parser.add_argument("--trace", default="evidence/trace.ndjson")
     command_parser = subparsers.add_parser("hook-pre-compact")
     command_parser.add_argument("--state-file", default="STATE.yaml")
+    command_parser = subparsers.add_parser("done", help="explicit completion "
+                                           "gate; always runs the verdict, "
+                                           "rejects a missing or blocked "
+                                           "stop_readiness with an actionable "
+                                           "reason")
+    command_parser.add_argument("--state-file", default="STATE.yaml")
+    command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
+    command_parser.add_argument("--run-tests", default=None,
+                                help="test command the verdict gate runs")
+    command_parser.add_argument("--verify-config",
+                                default="policies/verification.yaml",
+                                help="verification config; run the configured "
+                                     "verifiers and derive status before the "
+                                     "verdict gate")
+    command_parser.add_argument("--no-verify", action="store_true",
+                                help="skip the verifiers; trust self-reported "
+                                     "verification_status")
+    command_parser = subparsers.add_parser("verify", help="run the configured "
+                                           "project verifiers and write the "
+                                           "derived status into STATE.yaml")
+    command_parser.add_argument("--config", default="policies/verification.yaml")
+    command_parser.add_argument("--state-file", default="STATE.yaml")
+    command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
+    command_parser.add_argument("--timeout", type=int, default=None)
     command_parser = subparsers.add_parser("check-path")
     command_parser.add_argument("paths", nargs="+")
     command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
@@ -128,6 +152,15 @@ def main(argv=None):
                                            tool=args.tool, target=args.target)
     if args.cmd == "hook-pre-compact":
         return hook_commands.run_pre_compact(args.state_file)
+    if args.cmd == "done":
+        verify_config = None if args.no_verify else args.verify_config
+        return hook_commands.run_done(args.state_file, args.ledger_file,
+                                      run_tests=args.run_tests,
+                                      verify_config=verify_config)
+    if args.cmd == "verify":
+        from agentos.verify import run_verify
+        return run_verify(args.config, args.state_file, args.ledger_file,
+                          timeout=args.timeout)
     if args.cmd == "check-path":
         return hook_commands.run_check_path(args.paths, args.path_policy,
                                             os.getcwd())

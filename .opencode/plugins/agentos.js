@@ -78,7 +78,7 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       // stays cheap while stop_readiness is blocked (the common case;
       // templates ship blocked and you flip to ready only at task end).
       if (!isClaimingDone(root + "/STATE.yaml")) return
-      const { code, text } = await run(["hook-stop", "--run-tests", TEST_COMMAND])
+      const { code, text } = await run(["done", "--run-tests", TEST_COMMAND])
       if (code !== 2) return
       const fingerprint = text.trim()
       if (nudged.get(sessionID) === fingerprint) return  // one toast per failure
@@ -86,9 +86,11 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
       // Advisory only: never start a new AI turn from inside the idle event.
       // A turn-starting prompt API awaits a full turn, which deadlocks the
       // TUI when called from the handler of the event that marks the prior
-      // turn done. The git pre-commit hook remains the hard enforcement gate.
+      // turn done. The git pre-commit hook remains the hard gate. `done`
+      // is the explicit completion gate: it rejects a missing or blocked
+      // stop_readiness, so a prose claim cannot bypass the verdict.
       const message = "agent-os refuses the done claim:\n" + fingerprint +
-        "\nFix STATE.yaml or evidence/ledger.ndjson, then stop again."
+        "\nSet stop_readiness: ready and fix STATE.yaml or the ledger, then stop again."
       try {
         await client.app.log({ body: { service: "agent-os", level: "error",
                                        message } })

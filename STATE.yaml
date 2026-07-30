@@ -1,49 +1,57 @@
-task_id: ci-github-actions
-goal: Add GitHub Actions CI for tests and agent-os self-validation, closing issue #5
+task_id: pr33-review-fixes
+goal: Fix the two confirmed PR #33 review findings in run_done (ignored verify exit code, ignored config timeout) plus safe nits
 risk_class: reversible
-scope_in: [.github/workflows/ci.yml, README.md, STATE.yaml, evidence/ledger.ndjson]
-scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas, agentos, bin, examples, policies]
+scope_in: [agentos/hooks.py, agentos/verify.py, agentos/initcmd.py, tests/test_hook_commands.py, tests/test_verify.py, policies/verification.yaml, README.md, STATE.yaml, evidence/ledger.ndjson]
+scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas/, .opencode/plugins/agentos.js]
 acceptance_criteria:
-  - CI runs on pull requests and the default branch
-  - unit tests run successfully in CI
-  - agentos all runs successfully in CI
-  - the JavaScript adapter syntax is checked in CI
-  - workflow failures are visible as named status checks
-  - CI is documented in the README
-  - the full test suite passes and agentos all exits 0 on the repo
+  - done refuses the claim (exit 2) when verify exits nonzero, not relying on the STATE writeback
+  - done respects the timeout in policies/verification.yaml on the verify path
+  - a non-string command value in verification.yaml is a config error (exit 2), not a silent n/a
+  - the full-rewrite fallback in verify.py has test coverage
+  - the full test suite passes and agentos all exits 0
+  - agentos done exits 0 on this repo with the fixes in place
 confirmed_facts:
-  - fact: the repo had no GitHub Actions workflow before this change
-    evidence_ref: ls .github/workflows showed no such directory
-  - fact: .github/workflows/ci.yml runs unit tests, agentos all, and node --check on push to main and pull requests
-    evidence_ref: ci.yml defines validate job (matrix 3.9/3.11/3.13) and adapter-syntax job
-  - fact: the full test suite passes and agentos all exits 0 with the workflow present
-    evidence_ref: python3 -m unittest discover -s tests ran 136 tests OK; ./bin/agentos all exit 0
-  - fact: CI is documented in README.md
-    evidence_ref: README.md Continuous integration section
-  - fact: CI runs green on the PR with all four named status checks passing
-    evidence_ref: gh pr checks 32 shows adapter syntax (node) and validate (python 3.9/3.11/3.13) all pass
+  - fact: PR #33 review confirmed run_done ignores the run_verify exit code; a malformed verification.yaml with self-reported pass made done exit 0 while verify alone exited 2
+    evidence_ref: probe repo with malformed policies/verification.yaml; agentos verify exit 2, agentos done exit 0 (2026-07-30)
+  - fact: PR #33 review confirmed run_done forces timeout 600 over the config value; with config timeout 2 and tests sleep 5, verify timed out at 2s (fail) but done passed in 5.08s
+    evidence_ref: probe repo with timeout 2 and tests sleep 5; verify exit 1 in 2.06s, done exit 0 in 5.08s (2026-07-30)
+  - fact: PR #33 review confirmed a non-string command (tests 123 as an integer) is silently treated as n/a by verify
+    evidence_ref: probe repo with tests 123; verify exit 0, STATE tests n/a (2026-07-30)
+  - fact: run_done now refuses the claim (exit 2) on any nonzero verify exit, with a distinct actionable message for a config load error versus a failed verifier; the gate no longer depends on the STATE writeback succeeding
+    evidence_ref: agentos/hooks.py run_done; probes rerun post-fix -> malformed config exit 2, failed verifier with read-only STATE exit 2; tests/test_hook_commands.py test_done_verify_config_error_blocks
+  - fact: run_done passes timeout None so the config timeout applies on the done path, matching the verify CLI
+    evidence_ref: agentos/hooks.py run_done; probe rerun post-fix -> config timeout 2 with sleep 5 refused in 2.055s; tests/test_hook_commands.py test_done_respects_config_timeout
+  - fact: a non-string command value is rejected as a config error (exit 2) with a fix hint, not silently treated as n/a
+    evidence_ref: agentos/verify.py run_verify type check; probe rerun -> verify exit 2 with 'not a string'; tests/test_verify.py test_non_string_command_is_config_error
+  - fact: the full-rewrite fallback in verify.py has test coverage; missing verification fields are added back and all other fields survive
+    evidence_ref: tests/test_verify.py test_full_rewrite_fallback_preserves_fields
+  - fact: all 162 tests pass and agentos all exits 0 with the fixes in place
+    evidence_ref: python3 -m unittest discover -s tests -> Ran 162 tests OK (was 158); ./bin/agentos all exit 0
 assumptions: []
 decisions:
-  - decision: matrix covers Python 3.9, 3.11, and 3.13
-    rationale: the README states Python 3.8 or later; 3.9 is the oldest ubuntu-latest ships cleanly, 3.13 is current, 3.11 is a midpoint
-  - decision: node --check runs in its own job, not inside the python matrix
-    rationale: the adapter is a static JS file and its parse check does not depend on the python version; one node job avoids redundant runs
-  - decision: fail-fast is false on the matrix
-    rationale: a failure on one python version should not hide a failure on another; all versions report
-  - decision: concurrency cancels superseded runs on the same ref
-    rationale: a fast push should not queue behind a slow one on the same branch
+  - decision: any nonzero exit from run_verify refuses the done claim with exit 2 before the verdict gate runs
+    rationale: the verdict gate must not depend on the STATE writeback succeeding; a failed writeback or a malformed config would otherwise pass on stale self-reported status
+  - decision: run_done passes timeout None so the config timeout applies, matching the verify CLI path
+    rationale: the CLI passes None by default and the config wins; done must behave the same or the two paths disagree on the same repo
+  - decision: the self-host opencode plugin keeps --run-tests TEST_COMMAND even though verification.yaml also runs the suite
+    rationale: out of scope for the review fixes; the double run is wasteful but harmless, and changing self-host wiring is a separate decision
 failed_hypotheses: []
 open_questions: []
 changed_files:
-  - .github/workflows/ci.yml
+  - agentos/hooks.py
+  - agentos/verify.py
+  - agentos/initcmd.py
+  - tests/test_hook_commands.py
+  - tests/test_verify.py
+  - policies/verification.yaml
   - README.md
   - STATE.yaml
   - evidence/ledger.ndjson
 verification_status:
-  format: pass
-  compile: pass
+  format: n/a
+  compile: n/a
   tests: pass
   policy: pass
   security: n/a
-next_action: user reviews and merges PR #32 (https://github.com/shafayat1004/agent-os/pull/32); CI on the PR is green
+next_action: commit the fixes and push to the PR #33 branch (verify/completion-gate), then report the result to the user
 stop_readiness: ready

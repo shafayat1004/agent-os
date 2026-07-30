@@ -201,6 +201,7 @@ def _state_with(readiness=None, verdicts=None, criteria="[done means green]"):
 
 _PASS_COMMAND = '"%s" -c "pass"' % sys.executable
 _FAIL_COMMAND = '"%s" -c "import sys; sys.exit(3)"' % sys.executable
+_SLEEP_COMMAND = '"%s" -c "import time; time.sleep(5)"' % sys.executable
 
 
 class TestHookStopVerdict(unittest.TestCase):
@@ -271,6 +272,154 @@ class TestHookStopVerdict(unittest.TestCase):
             self._repo(temp_dir, _state_with(readiness="blocked"))
             completed = _run(["hook-stop", "--run-tests", _FAIL_COMMAND],
                              temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
+def _config_text(commands, timeout=60):
+    lines = ["commands:"]
+    for name in ("format", "compile", "tests", "policy", "security"):
+        value = commands.get(name)
+        if value is None:
+            lines.append("  %s: null" % name)
+        else:
+            lines.append('  %s: "%s"' % (name, value))
+    lines.append("timeout: %d" % timeout)
+    return "\n".join(lines) + "\n"
+
+
+class TestHookDone(unittest.TestCase):
+    def _repo(self, temp_dir, state_text):
+        _write(temp_dir, "STATE.yaml", state_text)
+        _write(temp_dir, os.path.join("evidence", "ledger.ndjson"), "")
+
+    def test_done_ready_with_green_allows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_done_missing_readiness_blocks_with_actionable_reason(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(verdicts={"tests": "pass"}))
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("stop_readiness is not set", completed.stderr)
+            self.assertIn("ready", completed.stderr)
+
+    def test_done_blocked_readiness_blocks_with_actionable_reason(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="blocked",
+                                              verdicts={"tests": "pass"}))
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("blocked", completed.stderr)
+            self.assertIn("ready", completed.stderr)
+
+    def test_done_malformed_readiness_blocks(self):
+        # The task-state schema enum is [ready, blocked], so a value that
+        # is neither is caught by the always-on schema check (exit 2). This
+        # covers "malformed is rejected" without weakening the schema.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_text = _state_with(verdicts={"tests": "pass"})
+            state_text = state_text.replace(
+                "acceptance_criteria: [done means green]",
+                "acceptance_criteria: [done means green]\n"
+                "stop_readiness: maybe")
+            self._repo(temp_dir, state_text)
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertTrue("stop_readiness" in completed.stderr
+                            or "schema" in completed.stderr.lower(),
+                            completed.stderr)
+
+    def test_done_ready_with_pending_verdict_blocks(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready",
+                                              verdicts={"tests": "pending"}))
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("tests", completed.stderr)
+
+    def test_done_ready_with_empty_criteria_blocks(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready", criteria="[]"))
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("acceptance_criteria", completed.stderr)
+
+    def test_done_run_tests_passing_allows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            completed = _run(["done", "--no-verify", "--run-tests",
+                              _PASS_COMMAND], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_done_run_tests_failing_blocks(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            completed = _run(["done", "--no-verify", "--run-tests",
+                              _FAIL_COMMAND], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("test command", completed.stderr)
+
+    def test_done_invalid_state_blocks(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            _write(temp_dir, "STATE.yaml", "task_id:\ngoal:\nnext_action:\n")
+            _write(temp_dir, os.path.join("evidence", "ledger.ndjson"), "")
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+
+    def test_done_missing_artifacts_allows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = _run(["done", "--no-verify"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_done_with_verify_derives_status(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            _write(temp_dir, os.path.join("policies", "verification.yaml"),
+                   _config_text({"tests": _PASS_COMMAND,
+                                 "policy": _FAIL_COMMAND}))
+            completed = _run(["done", "--run-tests", _PASS_COMMAND], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("configured verifier failed", completed.stderr)
+            # The writeback still ran before the refusal: the derived fail
+            # is in STATE.yaml, so the next gate run sees it too.
+            with open(os.path.join(temp_dir, "STATE.yaml")) as state_file:
+                self.assertIn("policy: fail", state_file.read())
+
+    def test_done_verify_config_error_blocks(self):
+        # A malformed verification config must refuse the claim (exit 2),
+        # never fall back to the self-reported status. Regression test:
+        # done used to ignore the verify exit code and pass here.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            _write(temp_dir, os.path.join("policies", "verification.yaml"),
+                   "commands:\n  tests: [broken\n   bad indent here\n")
+            completed = _run(["done"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("verification config", completed.stderr)
+
+    def test_done_respects_config_timeout(self):
+        # The config timeout must apply on the done path. Regression test:
+        # done used to force 600s, so this 5s sleep passed despite the
+        # configured 1s limit. Exit 2 (timeout fail) proves the config won.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            _write(temp_dir, os.path.join("policies", "verification.yaml"),
+                   _config_text({"tests": _SLEEP_COMMAND}, timeout=1))
+            completed = _run(["done"], temp_dir)
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertIn("configured verifier failed", completed.stderr)
+
+    def test_done_no_verify_skips_verify(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self._repo(temp_dir, _state_with(readiness="ready"))
+            _write(temp_dir, os.path.join("policies", "verification.yaml"),
+                   _config_text({"tests": _PASS_COMMAND,
+                                 "policy": _FAIL_COMMAND}))
+            completed = _run(["done", "--no-verify", "--run-tests",
+                              _PASS_COMMAND], temp_dir)
             self.assertEqual(completed.returncode, 0, completed.stderr)
 
 
