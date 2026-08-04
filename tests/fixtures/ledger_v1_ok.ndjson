@@ -1,0 +1,2 @@
+{"version": 1, "id": "e1", "claim": "build is green", "status": "confirmed", "evidence_ref": "unittest run", "source_type": "test", "verifier": "python3 -m unittest", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "ts": "2026-08-05T00:00:00Z", "criterion": "build-green"}
+{"version": 1, "id": "e2", "claim": "context note", "status": "inferred", "evidence_ref": "note", "source_type": "human", "verifier": "", "hash": "", "ts": "2026-08-05T00:00:00Z"}

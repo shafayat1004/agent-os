@@ -91,6 +91,8 @@ changed_files: [path]
 verification_status: { format, compile, tests, policy, security }
 next_action: string
 stop_readiness: ready | blocked   # optional
+criteria: [{ id: string, statement: string, status: active | obsolete }]   # optional
+task_started: <ISO 8601 UTC>   # optional
 ```
 
 Each field in `verification_status` holds one of: `pass`, `fail`, `n/a`,
@@ -116,6 +118,18 @@ A compaction rule applies. When context is shortened, do not summarize away
 `acceptance_criteria`, `confirmed_facts`, `decisions`, `failed_hypotheses`,
 or `verification_status`. These fields must stay intact.
 
+`criteria` is an optional list of acceptance criteria with stable ids. When
+present, a ledger entry may set `criterion` to one of these ids to link a
+proof to the criterion it satisfies. The ledger check then verifies that
+every `active` criterion has at least one confirmed proof. A criterion with
+`status: obsolete` is a retired requirement and needs no proof.
+`acceptance_criteria` stays the human-readable list the verdict gate checks
+for non-empty; `criteria` adds the linkage the ledger grades.
+
+`task_started`, when set, is an ISO 8601 UTC timestamp. A ledger entry with
+`ts` earlier than `task_started` is stale. A stale live proof blocks the
+done claim.
+
 ### 2.3 Evidence ledger (`evidence/ledger.ndjson`)
 
 The ledger is the fact-versus-inference layer. It is append-only. Each line
@@ -123,7 +137,8 @@ holds one JSON object, checked against `schemas/evidence.schema.json`:
 
 ```json
 { "claim": "", "status": "confirmed|inferred|unverified", "evidence_ref": "",
-  "source_type": "tool|file|test|policy|human", "verifier": "", "hash": "", "ts": "" }
+  "source_type": "tool|file|test|policy|human", "verifier": "", "hash": "", "ts": "",
+  "version": 1, "id": "", "criterion": "", "supersedes": "" }
 ```
 
 The caller supplies `ts`. The validator does not generate time, so results
@@ -132,6 +147,34 @@ when one applies.
 
 To supersede a claim, append a new entry that references the old claim. Do
 not mutate or delete a past entry.
+
+An entry without `version` is v0 (legacy): the validator checks its shape
+against this schema only. An entry with `version: 1` is v1 and must also
+pass the semantic layer: a non-empty `claim` and `evidence_ref`, an ISO
+8601 UTC `ts`, a non-empty `verifier` when `status` is `confirmed`, and a
+non-empty `hash` when `source_type` is `test` or `tool` and `status` is
+`confirmed`. The `version` enum is `[1]`; any other integer is a config
+error. The validator never weakens the v0 bar; v1 is extra strictness an
+entry opts into.
+
+`criterion` references an `id` in `STATE.yaml` `criteria`. When STATE has
+`criteria`, a v1 entry's `criterion` must name a real id. The ledger check
+reports every `active` criterion with no confirmed proof.
+
+`supersedes` references a line number (for a v0 entry, which has no id) or
+an id (for a v1 entry). A superseded entry is history and the validator
+does not grade its drift. To migrate a v0 entry to v1, append a v1 entry
+that re-states the claim and sets `supersedes` to the old line number. Do
+not edit or delete the old line.
+
+For a v1 entry with `source_type: file`, the validator resolves
+`evidence_ref` as a path and, when `hash` is set, recomputes the file hash.
+An unresolvable path or a hash mismatch is an error when the entry is a
+live proof of an active criterion (it blocks the done claim), a warning
+when the entry is a free-standing fact, and silent when the entry is
+superseded or its criterion is obsolete. A live proof is one whose
+`criterion` is an active id and whose `id` is not named by any later
+`supersedes`.
 
 ### 2.4 `policies/path-policy.yaml`
 
