@@ -360,11 +360,20 @@ class TestExtensionDirs(unittest.TestCase):
             with open(marker_script, "w") as f:
                 f.write("#!/bin/sh\necho 'extension ran' > %s/marker.txt\n" % td)
             os.chmod(marker_script, 0o755)
-            # Run the stop wrapper
+            # Run the stop wrapper the way Claude Code does: with
+            # CLAUDE_PROJECT_DIR pointing at the project. The wrapper's
+            # first line is `cd "${CLAUDE_PROJECT_DIR:-.}"`, so it must be
+            # set to td, not left to leak from the ambient environment.
+            # (Without this, running the suite inside a real Stop hook,
+            # which exports CLAUDE_PROJECT_DIR=<real repo>, cds the wrapper
+            # out of td and the extension never runs.)
             stop_wrapper = os.path.join(td, ".claude", "hooks",
                                         "agentos-stop-check")
-            subprocess.run([stop_wrapper], cwd=td,
-                           capture_output=True, text=True)
+            env = dict(os.environ, CLAUDE_PROJECT_DIR=td)
+            completed = subprocess.run([stop_wrapper], cwd=td, env=env,
+                                       capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0,
+                             completed.stdout + completed.stderr)
             # The marker file should exist
             self.assertTrue(os.path.exists(os.path.join(td, "marker.txt")))
 
