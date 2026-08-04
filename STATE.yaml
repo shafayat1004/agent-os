@@ -77,5 +77,5 @@ criteria:
   - id: c-suite-passes
     statement: the full test suite passes and agentos all exits 0
 task_started: "2026-08-05T00:00:00Z"
-next_action: commit and push the branch; create PR; after merge cut release 0.4.0 (tag + release notes + tarball); then add c-first-release-cut proof
-stop_readiness: blocked
+next_action: 0.4.0 shipped (tag v0.4.0 + release + tarball asset); upgrade path verified end to end; task complete
+stop_readiness: ready
