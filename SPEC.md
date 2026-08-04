@@ -1,4 +1,4 @@
-# SPEC.md - agent-os (release 0.4.0)
+# SPEC.md - agent-os (release 0.5.0)
 
 Status: normative. This file states the rules the validator checks.
 
@@ -17,13 +17,13 @@ rules to the harnesses that need one (`CLAUDE.md`, `GEMINI.md`,
 Code (hooks), opencode (a plugin), and any git flow (a pre-commit hook).
 See section 3.
 
-This is a pre-codebase bootstrap. You copy agent-os into a target repo before
-the agent reads any code in that repo. The normative files ship as skeleton
+This is a pre-codebase bootstrap. You copy agent-os into a target repository before
+the agent reads any code in that repository. The normative files ship as skeleton
 templates, not filled-in data. As work proceeds, the agent fills in
 `STATE.yaml`, appends to `evidence/ledger.ndjson`, and updates the policy
 files. The validator checks conformance at every step.
 
-`examples/subject/` shows one populated instance, derived from a real repo.
+`examples/subject/` shows one populated instance, derived from a real repository.
 
 ## 2. Normative artifacts
 
@@ -57,7 +57,7 @@ other artifacts.
 
 Narrative belongs in linked docs, not in `AGENTS.md`.
 
-The file has a size budget, checked by line count. The soft cap is about
+The file has a size budget. Line count checks it. The soft cap is about
 150 non-blank lines. The validator warns past the soft cap. The hard cap is
 about 250 non-blank lines. The validator fails past the hard cap. This
 budget stops rule-file bloat, a known failure mode for agent context.
@@ -102,19 +102,19 @@ Set `stop_readiness: ready` to claim done. That is the trigger for the
 verdict gates in section 3: the stop adapters then grade
 `acceptance_criteria` and `verification_status`, and run the configured
 test command. Any other value, or an absent field, means no done claim,
-and the stop adapters check schema validity only. Mid-task stops stay
-free: an agent that pauses to ask a question is not claiming done.
+and the stop adapters check schema validity only. A mid-task stop stays
+free: an agent that pauses to ask a question does not claim done.
 
 An explicit completion command, `agentos done`, complements the stop
-event. It always invokes the verdict gate: a missing, blocked, or
-malformed `stop_readiness` is rejected with an actionable reason, not
-silently allowed. The stop event (`agentos hook-stop`) fires on every
-turn end and gates only on a voluntary `ready`, so an agent that pauses
-to ask a question is not claiming done. `done` is the finalization
-command that cannot be bypassed by leaving readiness unset. A prose
+event. It always invokes the verdict gate: it rejects a missing,
+blocked, or malformed `stop_readiness` with an actionable reason, not
+a silent allow. The stop event (`agentos hook-stop`) fires on every
+turn end. It gates only on a voluntary `ready`, so an agent that pauses
+to ask a question does not claim done. `done` is the finalization
+command that no agent can bypass by leaving readiness unset. A prose
 claim is not a done claim.
 
-A compaction rule applies. When context is shortened, do not summarize away
+A compaction rule applies. When the context shortens, do not summarize away
 `acceptance_criteria`, `confirmed_facts`, `decisions`, `failed_hypotheses`,
 or `verification_status`. These fields must stay intact.
 
@@ -124,7 +124,7 @@ proof to the criterion it satisfies. The ledger check then verifies that
 every `active` criterion has at least one confirmed proof. A criterion with
 `status: obsolete` is a retired requirement and needs no proof.
 `acceptance_criteria` stays the human-readable list the verdict gate checks
-for non-empty; `criteria` adds the linkage the ledger grades.
+for non-empty. `criteria` adds the linkage the ledger grades.
 
 `task_started`, when set, is an ISO 8601 UTC timestamp. A ledger entry with
 `ts` earlier than `task_started` is stale. A stale live proof blocks the
@@ -149,12 +149,12 @@ To supersede a claim, append a new entry that references the old claim. Do
 not mutate or delete a past entry.
 
 An entry without `version` is v0 (legacy): the validator checks its shape
-against this schema only. An entry with `version: 1` is v1 and must also
-pass the semantic layer: a non-empty `claim` and `evidence_ref`, an ISO
-8601 UTC `ts`, a non-empty `verifier` when `status` is `confirmed`, and a
-non-empty `hash` when `source_type` is `test` or `tool` and `status` is
-`confirmed`. The `version` enum is `[1]`; any other integer is a config
-error. The validator never weakens the v0 bar; v1 is extra strictness an
+against this schema only. An entry with `version: 1` is v1 and must
+also pass the semantic layer. The layer requires a non-empty `claim`
+and `evidence_ref`, an ISO 8601 UTC `ts`, a non-empty `verifier` when
+`status` is `confirmed`, and a non-empty `hash` when `source_type` is
+`test` or `tool` and `status` is `confirmed`. The `version` enum is `[1]`. Any other integer is a config
+error. The validator never weakens the v0 bar. V1 is extra strictness an
 entry opts into.
 
 `criterion` references an `id` in `STATE.yaml` `criteria`. When STATE has
@@ -168,13 +168,12 @@ that re-states the claim and sets `supersedes` to the old line number. Do
 not edit or delete the old line.
 
 For a v1 entry with `source_type: file`, the validator resolves
-`evidence_ref` as a path and, when `hash` is set, recomputes the file hash.
-An unresolvable path or a hash mismatch is an error when the entry is a
-live proof of an active criterion (it blocks the done claim), a warning
-when the entry is a free-standing fact, and silent when the entry is
-superseded or its criterion is obsolete. A live proof is one whose
-`criterion` is an active id and whose `id` is not named by any later
-`supersedes`.
+`evidence_ref` as a path and, when the entry sets `hash`, recomputes the file hash.
+An unresolvable path or a hash mismatch raises an error for a live
+proof of an active criterion (it blocks the done claim). It raises a
+warning for a free-standing fact. It stays silent when the entry
+supersedes another or its criterion retires. A live proof has an
+active `criterion` id and no later `supersedes` names its `id`.
 
 ### 2.4 `policies/path-policy.yaml`
 
@@ -187,13 +186,13 @@ ask_first: [glob]     # these paths need explicit approval first
 never: [glob]         # these paths are a hard block
 ```
 
-The validator checks `never` first, then `ask_first`, then `may_edit`. A
-path no glob matches is reported as outside declared scope, a warning.
-The skeleton template ships `may_edit: ["*"]`, so a new repo starts open
+The validator checks `never` first, then `ask_first`, then `may_edit`. The validator reports a path no glob matches as outside declared
+scope, a warning.
+The skeleton template ships `may_edit: ["*"]`, so a new repository starts open
 and the warnings start to mean something once the lists fill in.
 
 `examples/subject/policies/path-policy.yaml` derives this from a real
-repo's rules: library and third-party code as `may_edit`, app and suite
+repository's rules: library and third-party code as `may_edit`, app and suite
 code as `ask_first`, and generated or render files as `never`.
 
 ### 2.5 `skills/index.yaml` and skill schema
@@ -209,10 +208,16 @@ fields are present, and that the version string is valid semver.
 v0.1 shipped the manifest and the lint only. It does not ship a promotion or
 benchmark pipeline for skills. See `ROADMAP.md`.
 
+The `ste-writing` skill ships a vendored domain glossary
+(`.claude/skills/ste-writing/glossary.json`) as a data asset. The
+glossary holds doc-verified controlled terminology for 16 software,
+SRE, and DevOps domains. Its sync discipline is a custom check, documented
+in section 3.3.
+
 ### 2.6 `policies/dependency-policy.yaml`
 
 The dependency policy names banned or required packages, checked against a
-target repo's manifests:
+target repository's manifests:
 
 ```yaml
 banned: [{ name: "Moq", reason: "org rule" }, { name: "AutoMapper", reason: "org rule" }]
@@ -234,17 +239,17 @@ plugin file. `agentos init` writes all three.
 | Adapter | Fires on | Checks | Fail behavior |
 |---|---|---|---|
 | git `pre-commit` (`hooks/pre-commit`) | commit | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
-| Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit | path-policy on the tool call's target path, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`; exit 1 (warn) on `ask_first` or an undeclared path |
-| Claude Code PostToolUse (`.claude/hooks/agentos-post-tool`) | every tool call | none; appends the tool and target to `evidence/trace.ndjson` (`agentos hook-post-tool`) | none: instrumentation, exit 0 always |
-| Claude Code PreCompact (`.claude/hooks/agentos-pre-compact`) | compaction | none; prints a reminder to refresh STATE.yaml, plus any STATE schema errors (`agentos hook-pre-compact`) | none: advisory, exit 0 always |
-| Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas; when STATE sets `stop_readiness: ready`, also the verdict gates (`agentos hook-stop`) | exit 2 (refuse the success claim) |
-| opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`; log a warning on `ask_first` |
-| opencode `tool.execute.after` (same plugin) | every tool call | none; appends the tool and target to the trace (`agentos hook-post-tool`) | none: instrumentation, errors ignored |
-| opencode `session.idle` (same plugin) | session idle | `agentos done` when `stop_readiness: ready` (skips the spawn otherwise) | refuse the done claim with an actionable reason; advisory toast and log (the git pre-commit hook is the hard gate) |
+| Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit | path-policy on the tool call's target path, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`. Exit 1 (warn) on `ask_first` or an undeclared path |
+| Claude Code PostToolUse (`.claude/hooks/agentos-post-tool`) | every tool call | none. Appends the tool and target to `evidence/trace.ndjson` (`agentos hook-post-tool`) | none: instrumentation, exit 0 always |
+| Claude Code PreCompact (`.claude/hooks/agentos-pre-compact`) | compaction | none. Prints a reminder to refresh STATE.yaml, plus any STATE schema errors (`agentos hook-pre-compact`) | none: advisory, exit 0 always |
+| Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas. When STATE sets `stop_readiness: ready`, also the verdict gates (`agentos hook-stop`) | exit 2 (refuse the success claim) |
+| opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`. Log a warning on `ask_first` |
+| opencode `tool.execute.after` (same plugin) | every tool call | none. Appends the tool and target to the trace (`agentos hook-post-tool`) | none: instrumentation, errors ignored |
+| opencode `session.idle` (same plugin) | session idle | `agentos done` when `stop_readiness: ready` (skips the spawn otherwise) | refuse the done claim with an actionable reason. Advisory toast and log (the git pre-commit hook is the hard gate) |
 
 Claude Code and the validator use different exit-code contracts. The
 validator exits 1 on a violation. A Claude Code PreToolUse or Stop hook
-blocks only on exit 2; any other nonzero code is a non-blocking warning.
+blocks only on exit 2. Any other nonzero code is a non-blocking warning.
 The `hook-pre-tool` and `hook-stop` subcommands do this mapping, and the
 opencode plugin maps exit 2 to a thrown error, which is how opencode
 blocks a tool call. All adapters fail open on a config error: a
@@ -257,10 +262,10 @@ plain validator subcommands.
 when STATE sets `stop_readiness: ready`. Then the stop adapters refuse
 the done claim (exit 2) unless `acceptance_criteria` is non-empty and
 every `verification_status` field is `pass` or `n/a`. An adapter may
-also pass `--run-tests CMD`; the gate then runs CMD and refuses the
+also pass `--run-tests CMD`. The gate then runs CMD and refuses the
 claim when CMD exits nonzero. Without the flag, the verdict values stay
-self-reported. The flag is repo wiring, not a validator default: only
-the repo knows its test command.
+self-reported. The flag is repository wiring, not a validator default: only
+the repository knows its test command.
 
 The trace file `evidence/trace.ndjson` is local instrumentation, not a
 seventh artifact. No check grades it, and it belongs in `.gitignore`.
@@ -268,12 +273,12 @@ Its purpose is the context-accounting work in `ROADMAP.md`.
 
 Two deployment models exist. In the vendored model (the default in 0.4.0),
 `agentos init` copies `bin/`, `agentos/`, `schemas/`, and `VERSION` into
-the target repo under `.agent-os/`. The generated hook wrappers and the
+the target repository under `.agent-os/`. The generated hook wrappers and the
 opencode plugin reference this vendored copy with relative paths, so a
 fresh clone works without an external agent-os checkout. In the shared
 model (`agentos init --shared PATH`), the generated adapters point at one
 shared agent-os checkout by absolute path. That checkout becomes a
-permanent dependency of every repo it wires, and the model is not
+permanent dependency of every repository it wires, and the model is not
 portable. Both models use `$CLAUDE_PROJECT_DIR` paths in
 `.claude/settings.json`, so the settings file is safe to commit.
 
@@ -286,9 +291,9 @@ extension directories (section 3.1) are user-owned and never overwritten.
 
 ### 3.1 Hook extension directories
 
-A repo that needs checks the native schema cannot express (example: block
+A repository that needs checks the native schema cannot express (example: block
 edits to `App/Core/` unless a confirmation file exists, run a formatter
-after every edit, refuse done unless the changelog is updated) adds
+after every edit, refuse done unless someone updates the changelog) adds
 shell scripts to hook extension directories:
 
 ```
@@ -310,7 +315,7 @@ empty is a no-op. `agentos upgrade` never touches `.d` contents.
 
 ### 3.2 Custom checks in `agentos all`
 
-A repo that needs its own checks as graded lines in the `agentos all`
+A repository that needs its own checks as graded lines in the `agentos all`
 output adds them to `policies/custom-checks.yaml`:
 
 ```yaml
@@ -325,8 +330,40 @@ checks:
 `agentos all` runs these after the six built-in checks. Each prints
 `[PASS] name (grade A)` or `[FAIL] name (grade A)`. A failing
 `on_fail: error` check blocks `agentos done`. A `warn` check does not.
-The file is optional; absent means no custom checks. `agentos upgrade`
+The file is optional. Absent means no custom checks. `agentos upgrade`
 never overwrites it.
+
+### 3.3 Skill data provenance: the ste-writing glossary
+
+The `ste-writing` skill comes from the upstream `agent-skills`
+repository. Its domain glossary is data, not code, so a separate discipline
+governs when an update is necessary.
+
+Two checks live in `.claude/skills/ste-writing/scripts/glossary-sync.py`.
+The script imports the standard library only, so it keeps the
+zero-dependency guarantee.
+
+The regular check (`glossary-sync.py --check`) runs in `agentos all`
+as a custom check with `on_fail: warn`. It makes no network call. It
+validates the glossary structure and compares the local content hash
+against a pinned provenance file
+(`.claude/skills/ste-writing/glossary.provenance.json`). The hash
+covers the normative term content and excludes volatile metadata, such
+as the `generated` date. A mismatch means the local glossary drifted
+from its last deliberate sync. The check warns, it does not block
+`agentos done`, because a stale glossary does not break the validator.
+
+The necessity check (`glossary-sync.py --check-upstream`) is on demand
+or in a CI cron. It fetches the upstream glossary, compares the
+normative term content, and reports whether an update is absolutely
+necessary. An update is necessary only when term content changes: terms
+added, removed, or modified. A difference confined to volatile metadata is not
+necessary. The report lists the domains and terms that differ.
+
+`glossary-sync.py --pin` rewrites the provenance file after a
+deliberate sync. It records the upstream commit SHA, the sync date, the
+content hash, and the skill version. Run it after pulling a glossary
+update from upstream, so the regular check stays green.
 
 ## 4. Validator (`agentos`)
 
@@ -350,16 +387,17 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   (`node_modules`, `.git`, `bin`, `obj`, `dist`, `build`, `packages`, and
   similar). The policy `ignore` list adds more directory names to skip.
 - `agentos all` runs every check. It exits nonzero on any failure.
-- `agentos init [DEST]` wires a repo for use. By default it vendors the
+- `agentos init [DEST]` wires a repository for use. By default it vendors the
   runtime (`.agent-os/`) into the target so the install is portable. With
   `--shared PATH`, it writes adapters that point at a shared checkout.
-  It copies the skeleton artifacts, writes pointer files at `AGENTS.md`
-  (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`),
-  installs a git `pre-commit` hook, writes the Claude Code hook wrappers
-  under `.claude/hooks/`, writes the opencode plugin under
-  `.opencode/plugins/`, and writes `.claude/settings.json` when that
-  file does not exist. When it does exist, init prints a snippet to
-  merge. It never overwrites a file that exists.
+  It copies the skeleton artifacts. It writes pointer files at
+  `AGENTS.md` (`CLAUDE.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`). It installs a git `pre-commit`
+  hook, writes the Claude Code hook wrappers under `.claude/hooks/`,
+  writes the opencode plugin under `.opencode/plugins/`, and writes
+  `.claude/settings.json` when that file does not exist. When it does
+  exist, init prints a snippet to merge. It never overwrites a file
+  that exists.
 - `agentos upgrade [--to VERSION] [--check]` refreshes the vendored
   runtime in `.agent-os/` from a release tarball. Without `--to`, it
   fetches the latest release. `--check` compares the local `VERSION`
@@ -403,13 +441,13 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   unavailable (status `n/a`). A timeout or a non-runnable command is a
   fail. The verdict comes from execution, not a self-reported value.
 - `agentos done` is the explicit completion gate. It runs the verdict
-  gate unconditionally: STATE and the ledger must be valid,
-  `stop_readiness` must be `ready` (a missing or blocked value is
-  rejected with an actionable reason), `acceptance_criteria` must be
-  non-empty, every `verification_status` field must be `pass` or `n/a`,
+  gate unconditionally: STATE and the ledger must hold valid data,
+  `stop_readiness` must read `ready` (the gate rejects a missing or
+  blocked value with an actionable reason), `acceptance_criteria` must be
+  non-empty, every `verification_status` field must read `pass` or `n/a`,
   and the command given with `--run-tests CMD`, when passed, must exit 0.
   When a `policies/verification.yaml` is present, `done` runs `verify`
-  first, so the status is derived from execution. `--no-verify` trusts
+  first, so execution derives the status. `--no-verify` trusts
   the self-reported status.
 
 Each check prints its evidence grade next to its result. Pass `--json` for
@@ -421,7 +459,7 @@ Exit codes:
 - `1` means at least one check found a violation.
 - `2` means a config or usage error, such as a missing file or a bad flag.
 
-## 5. Repository layout (0.4.0, only what is built)
+## 5. Repository layout (0.5.0, built items only)
 
 ```
 agent-os/
@@ -494,18 +532,18 @@ agent-os/
 ### 5.1 Self-governance
 
 agent-os governs its own codebase with the same artifacts it defines. The
-repo root carries a populated `AGENTS.md`, `STATE.yaml`, evidence ledger,
-policies, skill index, and the pointer files, and both enforcement
-adapters are committed: `.claude/settings.json` for Claude Code and
+repository root carries a populated `AGENTS.md`, `STATE.yaml`, evidence ledger,
+policies, skill index, and pointer files. The repository commits both
+enforcement adapters: `.claude/settings.json` for Claude Code and
 `.opencode/plugins/agentos.js` for opencode. The reference hooks under
-`hooks/` run against the repo's own `bin/agentos`.
+`hooks/` run against the repository's own `bin/agentos`.
 `tests/test_self_governance.py` is the self-compile gate: it runs
-`agentos all` on the repo itself and on a fresh init destination, and
+`agentos all` on the repository itself and on a fresh init destination, and
 both must exit 0.
 
-## 6. Non-goals for 0.4.0
+## 6. Non-goals for 0.5.0
 
-agent-os 0.4.0 does not build:
+agent-os 0.5.0 does not build:
 
 - An agent runtime, orchestrator, or model adapter.
 - A skill promotion or deprecation pipeline. The manifest format and
@@ -514,7 +552,7 @@ agent-os 0.4.0 does not build:
 - A dashboard, telemetry sink, or knowledge graph.
 
 These stay documented and unbuilt. See `ROADMAP.md` for the gate each one
-needs before it gets built.
+needs before anyone builds them.
 
 ## 7. Versioning
 
@@ -524,11 +562,11 @@ release, and the schemas.
 
 | Dimension | Source of truth | Form | Bumped when |
 |---|---|---|---|
-| Release version | `VERSION` file at repo root | one semver, the git tag | any shipped change |
-| Schema version | `schema_version` integer at the top of each schema file | additive, per file | a schema field is added, removed, or its type changes |
+| Release version | `VERSION` file at repository root | one semver, the git tag | any shipped change |
+| Schema version | `schema_version` integer at the top of each schema file | additive, per file | someone adds or removes a schema field, or changes its type |
 | Adapter protocol | `ADAPTER_PROTOCOL` integer in `agentos/version.py` | one integer | the hook stdin/stdout contract or exit-code mapping changes |
 
-`agentos --version` reports all three: `agentos 0.4.0 (schema
+`agentos --version` reports all three: `agentos 0.5.0 (schema
 evidence=1, skill=1, task-state=1; adapter protocol 1)`.
 
 ### Compatibility rules
@@ -540,7 +578,7 @@ evidence=1, skill=1, task-state=1; adapter protocol 1)`.
   plugin from an older release may not work with a newer runtime.
   `agentos upgrade` refreshes the adapter glue.
 - The release version follows semver. In the 0.x line, a minor bump
-  marks a feature addition; a patch bump marks a fix.
+  marks a feature addition. A patch bump marks a fix.
 
 ### Release discipline
 

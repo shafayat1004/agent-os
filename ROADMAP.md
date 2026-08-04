@@ -3,20 +3,20 @@
 Status: documented, not built. Each module lists its evidence grade and the
 gate it must pass before work starts. A gate is the measurement or proof
 that must exist first. Building ahead of the gate repeats the mistake
-`WHITEPAPER.md` warns against: a large system built before its parts are
-proven.
+`WHITEPAPER.md` warns against: a large system built before someone
+proves its parts.
 
 See `SPEC.md` for the six modules already built in v0.1.
 
 | Module | Grade | Gate to build |
 |---|---|---|
 | Skill promotion and deprecation pipeline | Emerging | A skill regression suite and a retrieval-frequency metric both exist |
-| Context accounting (retrieved versus used) | B+ | Instrumentation that logs retrieval and its effect on the diff exists; the post-tool trace (SPEC.md section 3) is the first half |
+| Context accounting (retrieved versus used) | B+ | Instrumentation that logs retrieval and its effect on the diff exists. The post-tool trace (SPEC.md section 3) is the first half |
 | Workflow state-machine engine | Emerging | At least three workflows run stable as YAML the validator checks |
-| Telemetry and dashboard | Mostly custom | A metrics schema and a trace sink are chosen |
-| Knowledge or architecture graph | Weak | Repo self-analysis output stays stable enough to persist |
+| Telemetry and dashboard | Mostly custom | Someone chooses a metrics schema and a trace sink |
+| Knowledge or architecture graph | Weak | Repository self-analysis output stays stable enough to persist |
 | Model adapters (Codex, OpenCode, and others) | Not applicable yet | At least one non-Claude agent adopts the v0.1 spec |
-| Memory promotion and pruning | Emerging | A memory quality score, covering usefulness, staleness, and contradiction, is defined |
+| Memory promotion and pruning | Emerging | A memory quality score, covering usefulness, staleness, and contradiction, has a definition |
 
 ## How to read this table
 
@@ -28,8 +28,8 @@ proven.
 
 The gate states what must be true before work on that module starts. Most
 gates ask for a measurement, an instrumentation point, or a track record
-across real workflows. None of the gates are met yet. When one is met, add
-the module to `SPEC.md` as a new normative artifact.
+across real workflows. No one has met a gate yet. When someone meets
+one, add the module to `SPEC.md` as a new normative artifact.
 
 ## Why the list stops here
 

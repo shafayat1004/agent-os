@@ -1,12 +1,12 @@
 # Skill manifest for the agent-os repo itself (self-governance).
 skills:
   - name: ste-writing
-    version: 1.0.0
+    version: 1.1.0
     owner: agent-os
-    purpose: Rewrite technical prose into ASD-STE100 Simplified Technical English.
+    purpose: Rewrite technical prose into ASD-STE100-aligned Simplified Technical English, with a doc-verified domain glossary.
     when_to_use: Docs, READMEs, PR bodies, release notes. Never code.
     inputs: [draft prose]
     outputs: [STE-flavored prose, lint findings]
-    tests: [".claude/skills/ste-writing/scripts/ste-lint.py"]
+    tests: [".claude/skills/ste-writing/scripts/ste-lint.py", ".claude/skills/ste-writing/scripts/glossary-sync.py --check"]
     safety_constraints: ["Does not rewrite code, identifiers, or command syntax."]
     provenance: Project-local skill.

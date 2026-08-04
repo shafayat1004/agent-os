@@ -1,0 +1,2413 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-07-29",
+  "standard": "ASD-STE100 adaptation for software engineering, DevOps, SRE, and IT",
+  "note": "Doc-verified controlled terminology. Per domain: approved technical nouns and verbs (not flagged by the linter), alias->canonical mappings (one name for one thing), and terms to avoid with preferred replacements. Consumed by scripts/ste-lint.py. See each domain's 'sources' for provenance.",
+  "domains": {
+    "azure": {
+      "label": "Microsoft Azure",
+      "sources": [
+        "https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/overview",
+        "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/considerations/fundamental-concepts",
+        "https://learn.microsoft.com/en-us/azure/reliability/availability-zones-overview",
+        "https://learn.microsoft.com/en-us/style-guide/bias-free-communication",
+        "https://learn.microsoft.com/en-us/style-guide/militaristic-language",
+        "https://learn.microsoft.com/en-us/entra/fundamentals/new-name"
+      ],
+      "technical_nouns": [
+        "resource",
+        "resource group",
+        "subscription",
+        "management group",
+        "resource provider",
+        "Azure Resource Manager",
+        "ARM template",
+        "Bicep",
+        "tenant",
+        "region",
+        "region pair",
+        "availability zone",
+        "availability set",
+        "virtual machine",
+        "virtual machine scale set",
+        "managed disk",
+        "virtual network",
+        "subnet",
+        "network security group",
+        "application security group",
+        "Azure Load Balancer",
+        "Azure Application Gateway",
+        "Azure Front Door",
+        "Azure DNS",
+        "Azure Traffic Manager",
+        "public IP address",
+        "private endpoint",
+        "service endpoint",
+        "virtual network peering",
+        "ExpressRoute",
+        "VPN gateway",
+        "Azure Bastion",
+        "storage account",
+        "blob",
+        "blob container",
+        "file share",
+        "queue",
+        "table",
+        "Azure SQL Database",
+        "Azure Cosmos DB",
+        "Azure Cache for Redis",
+        "Azure Kubernetes Service",
+        "Azure Container Apps",
+        "Azure Container Instances",
+        "Azure Container Registry",
+        "App Service",
+        "App Service plan",
+        "Azure Functions",
+        "function app",
+        "Azure Key Vault",
+        "Microsoft Entra ID",
+        "managed identity",
+        "service principal",
+        "role assignment",
+        "Azure role-based access control",
+        "Azure Policy",
+        "resource lock",
+        "tag",
+        "Azure Monitor",
+        "Log Analytics workspace",
+        "Application Insights",
+        "Azure Event Hubs",
+        "Azure Service Bus",
+        "Azure Event Grid"
+      ],
+      "technical_verbs": [
+        "provision",
+        "deprovision",
+        "deploy",
+        "redeploy",
+        "scale",
+        "scale out",
+        "scale in",
+        "scale up",
+        "autoscale",
+        "throttle",
+        "allocate",
+        "deallocate",
+        "peer",
+        "federate",
+        "replicate",
+        "fail over",
+        "back up",
+        "restore",
+        "snapshot",
+        "mount",
+        "attach",
+        "detach",
+        "authenticate",
+        "authorize",
+        "migrate"
+      ],
+      "canonical": {
+        "availability zone": {
+          "aliases": [
+            "AZ"
+          ],
+          "note": "A physically separate location within an Azure region."
+        },
+        "resource group": {
+          "aliases": [
+            "RG"
+          ],
+          "note": "Container that holds related resources for an Azure solution."
+        },
+        "Azure Resource Manager": {
+          "aliases": [
+            "ARM"
+          ],
+          "note": "The deployment and management service and control plane for Azure."
+        },
+        "virtual machine": {
+          "aliases": [
+            "VM"
+          ],
+          "note": "Azure IaaS compute instance."
+        },
+        "virtual machine scale set": {
+          "aliases": [
+            "VMSS"
+          ],
+          "note": "A group of identical, load-balanced VMs that can autoscale."
+        },
+        "virtual network": {
+          "aliases": [
+            "VNet",
+            "VNET"
+          ],
+          "note": "Isolated network in Azure. Docs spell it VNet."
+        },
+        "network security group": {
+          "aliases": [
+            "NSG"
+          ],
+          "note": "Filters inbound and outbound traffic to Azure resources."
+        },
+        "Azure role-based access control": {
+          "aliases": [
+            "Azure RBAC",
+            "RBAC"
+          ],
+          "note": "Authorization system built on Azure Resource Manager."
+        },
+        "Azure Kubernetes Service": {
+          "aliases": [
+            "AKS"
+          ],
+          "note": "Managed Kubernetes service."
+        },
+        "Azure Container Registry": {
+          "aliases": [
+            "ACR"
+          ],
+          "note": "Managed container image registry."
+        },
+        "Microsoft Entra ID": {
+          "aliases": [
+            "Azure AD",
+            "Azure Active Directory",
+            "AAD"
+          ],
+          "note": "Cloud identity service. Renamed from Azure Active Directory."
+        }
+      },
+      "avoid": {
+        "master/slave": {
+          "prefer": "primary/subordinate",
+          "reason": "Non-inclusive. Microsoft style replaces this pair with primary and subordinate.",
+          "source": "https://learn.microsoft.com/en-us/style-guide/bias-free-communication"
+        },
+        "demilitarized zone (DMZ)": {
+          "prefer": "perimeter network",
+          "reason": "Militaristic term. Microsoft style uses perimeter network.",
+          "source": "https://learn.microsoft.com/en-us/style-guide/bias-free-communication"
+        },
+        "hang": {
+          "prefer": "stop responding",
+          "reason": "Microsoft style avoids hang for a stalled app or service.",
+          "source": "https://learn.microsoft.com/en-us/style-guide/bias-free-communication"
+        },
+        "manmade": {
+          "prefer": "synthetic, manufactured",
+          "reason": "Use gender-neutral alternatives.",
+          "source": "https://learn.microsoft.com/en-us/style-guide/bias-free-communication"
+        },
+        "manpower": {
+          "prefer": "workforce, staff, personnel",
+          "reason": "Use gender-neutral alternatives.",
+          "source": "https://learn.microsoft.com/en-us/style-guide/bias-free-communication"
+        },
+        "Azure Active Directory": {
+          "prefer": "Microsoft Entra ID",
+          "reason": "Deprecated product name. Azure Active Directory was renamed to Microsoft Entra ID.",
+          "source": "https://learn.microsoft.com/en-us/entra/fundamentals/new-name"
+        }
+      }
+    },
+    "gcp": {
+      "label": "Google Cloud Platform (GCP)",
+      "sources": [
+        "https://docs.cloud.google.com/docs/overview",
+        "https://docs.cloud.google.com/compute/docs/regions-zones",
+        "https://developers.google.com/style/inclusive-documentation",
+        "https://developers.google.com/style/word-list",
+        "https://cloud.google.com/products"
+      ],
+      "technical_nouns": [
+        "project",
+        "organization",
+        "folder",
+        "billing account",
+        "region",
+        "zone",
+        "resource",
+        "Compute Engine",
+        "virtual machine instance",
+        "machine type",
+        "persistent disk",
+        "instance template",
+        "managed instance group",
+        "VPC network",
+        "subnet",
+        "firewall rule",
+        "Cloud Load Balancing",
+        "Cloud DNS",
+        "Cloud NAT",
+        "Cloud Router",
+        "Cloud Interconnect",
+        "external IP address",
+        "Cloud Storage",
+        "bucket",
+        "object",
+        "Cloud SQL",
+        "Cloud Spanner",
+        "Bigtable",
+        "Firestore",
+        "BigQuery",
+        "dataset",
+        "Cloud Run",
+        "Cloud Functions",
+        "Google Kubernetes Engine",
+        "cluster",
+        "node pool",
+        "App Engine",
+        "Artifact Registry",
+        "Pub/Sub",
+        "topic",
+        "subscription",
+        "Cloud Tasks",
+        "Cloud Scheduler",
+        "Dataflow",
+        "Dataproc",
+        "Cloud Composer",
+        "Identity and Access Management",
+        "service account",
+        "IAM role",
+        "IAM policy",
+        "Cloud Key Management Service",
+        "Secret Manager",
+        "Cloud Armor",
+        "Cloud CDN",
+        "Cloud Monitoring",
+        "Cloud Logging",
+        "Cloud Trace",
+        "Vertex AI"
+      ],
+      "technical_verbs": [
+        "provision",
+        "deprovision",
+        "deploy",
+        "scale",
+        "autoscale",
+        "throttle",
+        "allocate",
+        "peer",
+        "federate",
+        "replicate",
+        "fail over",
+        "back up",
+        "restore",
+        "snapshot",
+        "migrate",
+        "authenticate",
+        "authorize",
+        "ingest",
+        "query",
+        "publish",
+        "subscribe",
+        "attach",
+        "detach",
+        "mount"
+      ],
+      "canonical": {
+        "Cloud Storage": {
+          "aliases": [
+            "GCS",
+            "Google Cloud Storage"
+          ],
+          "note": "Object storage service. Canonical name is Cloud Storage, not GCS."
+        },
+        "Google Kubernetes Engine": {
+          "aliases": [
+            "GKE"
+          ],
+          "note": "Managed Kubernetes service."
+        },
+        "Compute Engine": {
+          "aliases": [
+            "GCE"
+          ],
+          "note": "IaaS virtual machine service."
+        },
+        "BigQuery": {
+          "aliases": [
+            "BQ"
+          ],
+          "note": "Serverless data warehouse. One word, camel case."
+        },
+        "Identity and Access Management": {
+          "aliases": [
+            "IAM",
+            "Cloud IAM"
+          ],
+          "note": "Access control service for Google Cloud resources."
+        },
+        "managed instance group": {
+          "aliases": [
+            "MIG"
+          ],
+          "note": "A group of identical VM instances managed as a unit."
+        },
+        "VPC network": {
+          "aliases": [
+            "VPC"
+          ],
+          "note": "Virtual Private Cloud network."
+        },
+        "Pub/Sub": {
+          "aliases": [
+            "Cloud Pub/Sub",
+            "PubSub"
+          ],
+          "note": "Asynchronous messaging service. Canonical spelling is Pub/Sub."
+        },
+        "Cloud Key Management Service": {
+          "aliases": [
+            "Cloud KMS",
+            "KMS"
+          ],
+          "note": "Managed key management service."
+        },
+        "virtual machine instance": {
+          "aliases": [
+            "VM",
+            "instance"
+          ],
+          "note": "A Compute Engine virtual machine."
+        }
+      },
+      "avoid": {
+        "whitelist": {
+          "prefer": "allowlist",
+          "reason": "Non-inclusive. Google style recommends allowlist, trustlist, or safelist.",
+          "source": "https://developers.google.com/style/word-list"
+        },
+        "blacklist": {
+          "prefer": "denylist",
+          "reason": "Non-inclusive. Google style recommends denylist, blocklist, or excludelist.",
+          "source": "https://developers.google.com/style/word-list"
+        },
+        "master/slave": {
+          "prefer": "primary/replica",
+          "reason": "Non-inclusive. Google style uses primary or main for master, and replica or worker for slave.",
+          "source": "https://developers.google.com/style/word-list"
+        },
+        "native": {
+          "prefer": "built-in",
+          "reason": "Ambiguous. Google style prefers built-in or a more specific term when referring to software.",
+          "source": "https://developers.google.com/style/word-list"
+        }
+      }
+    },
+    "aws": {
+      "label": "Amazon Web Services (AWS)",
+      "sources": [
+        "https://docs.aws.amazon.com/general/latest/gr/glos-chap.html",
+        "https://docs.aws.amazon.com/network-firewall/latest/developerguide/stateful-rule-groups-domain-names.html",
+        "https://docs.aws.amazon.com/macie/latest/user/allow-lists-options.html",
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html",
+        "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html"
+      ],
+      "technical_nouns": [
+        "Region",
+        "Availability Zone",
+        "edge location",
+        "Local Zone",
+        "Wavelength Zone",
+        "VPC",
+        "subnet",
+        "route table",
+        "internet gateway",
+        "NAT gateway",
+        "security group",
+        "network ACL",
+        "Elastic IP address",
+        "EC2 instance",
+        "instance type",
+        "Amazon Machine Image",
+        "Amazon EBS volume",
+        "snapshot",
+        "Auto Scaling group",
+        "launch template",
+        "Elastic Load Balancing",
+        "Application Load Balancer",
+        "Network Load Balancer",
+        "S3 bucket",
+        "object",
+        "Amazon RDS",
+        "DB instance",
+        "read replica",
+        "Amazon Aurora",
+        "Amazon DynamoDB",
+        "Amazon Redshift",
+        "AWS Lambda",
+        "Lambda function",
+        "Amazon ECS",
+        "Amazon EKS",
+        "task definition",
+        "AWS Fargate",
+        "Amazon ECR",
+        "AWS Identity and Access Management",
+        "IAM role",
+        "IAM policy",
+        "IAM user",
+        "IAM group",
+        "AWS KMS",
+        "KMS key",
+        "Amazon CloudWatch",
+        "AWS CloudTrail",
+        "Amazon CloudFront",
+        "distribution",
+        "Amazon Route 53",
+        "hosted zone",
+        "Amazon SNS",
+        "Amazon SQS",
+        "AWS CloudFormation",
+        "stack",
+        "Amazon VPC",
+        "AWS Organizations",
+        "organizational unit"
+      ],
+      "technical_verbs": [
+        "provision",
+        "deprovision",
+        "deploy",
+        "scale",
+        "scale out",
+        "scale in",
+        "autoscale",
+        "throttle",
+        "allocate",
+        "deallocate",
+        "peer",
+        "federate",
+        "replicate",
+        "fail over",
+        "back up",
+        "restore",
+        "snapshot",
+        "migrate",
+        "authenticate",
+        "authorize",
+        "assume",
+        "invoke",
+        "ingest",
+        "query",
+        "publish",
+        "subscribe",
+        "attach",
+        "detach",
+        "mount"
+      ],
+      "canonical": {
+        "Availability Zone": {
+          "aliases": [
+            "AZ"
+          ],
+          "note": "A distinct, isolated location within an AWS Region."
+        },
+        "Amazon Simple Storage Service": {
+          "aliases": [
+            "S3",
+            "Amazon S3"
+          ],
+          "note": "Object storage service. Commonly referred to as S3."
+        },
+        "S3 bucket": {
+          "aliases": [
+            "bucket"
+          ],
+          "note": "A container for objects stored in Amazon S3."
+        },
+        "Amazon Elastic Compute Cloud": {
+          "aliases": [
+            "EC2",
+            "Amazon EC2"
+          ],
+          "note": "Resizable compute capacity as virtual server instances."
+        },
+        "Amazon Virtual Private Cloud": {
+          "aliases": [
+            "VPC",
+            "Amazon VPC"
+          ],
+          "note": "Logically isolated virtual network in AWS."
+        },
+        "AWS Identity and Access Management": {
+          "aliases": [
+            "IAM"
+          ],
+          "note": "Access control service for AWS resources."
+        },
+        "Amazon Elastic Kubernetes Service": {
+          "aliases": [
+            "EKS"
+          ],
+          "note": "Managed Kubernetes service."
+        },
+        "Amazon Elastic Container Service": {
+          "aliases": [
+            "ECS"
+          ],
+          "note": "Container orchestration service."
+        },
+        "Amazon Elastic Container Registry": {
+          "aliases": [
+            "ECR"
+          ],
+          "note": "Managed container image registry."
+        },
+        "Amazon Elastic Block Store": {
+          "aliases": [
+            "EBS"
+          ],
+          "note": "Block storage volumes for EC2 instances."
+        },
+        "Amazon Machine Image": {
+          "aliases": [
+            "AMI"
+          ],
+          "note": "Template that defines an EC2 instance at launch."
+        },
+        "AWS Key Management Service": {
+          "aliases": [
+            "AWS KMS",
+            "KMS"
+          ],
+          "note": "Managed key creation and control service."
+        },
+        "Amazon Relational Database Service": {
+          "aliases": [
+            "RDS",
+            "Amazon RDS"
+          ],
+          "note": "Managed relational database service."
+        },
+        "network ACL": {
+          "aliases": [
+            "NACL",
+            "network access control list"
+          ],
+          "note": "Stateless traffic filter at the subnet boundary."
+        }
+      },
+      "avoid": {
+        "whitelist": {
+          "prefer": "allow list",
+          "reason": "Non-inclusive. AWS documentation uses allow list, for example in Network Firewall and Macie.",
+          "source": "https://docs.aws.amazon.com/macie/latest/user/allow-lists-options.html"
+        },
+        "blacklist": {
+          "prefer": "deny list",
+          "reason": "Non-inclusive. AWS documentation uses deny list, for example in IAM policy evaluation and Organizations SCPs.",
+          "source": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html"
+        },
+        "master": {
+          "prefer": "primary",
+          "reason": "In database replication contexts AWS RDS uses primary DB instance and read replica, not master.",
+          "source": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html"
+        },
+        "slave": {
+          "prefer": "read replica",
+          "reason": "In database replication contexts AWS RDS uses read replica, not slave.",
+          "source": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html"
+        }
+      }
+    },
+    "datadog": {
+      "label": "Datadog",
+      "sources": [
+        "https://docs.datadoghq.com/glossary/",
+        "https://docs.datadoghq.com/getting_started/"
+      ],
+      "technical_nouns": [
+        "monitor",
+        "alert",
+        "metric",
+        "log",
+        "trace",
+        "span",
+        "APM",
+        "RUM",
+        "SLO",
+        "SLI",
+        "dashboard",
+        "widget",
+        "host",
+        "Datadog Agent",
+        "Synthetic Monitoring",
+        "Synthetic test",
+        "Watchdog",
+        "facet",
+        "tag",
+        "attribute",
+        "notebook",
+        "Incident Management",
+        "event",
+        "service",
+        "Service Map",
+        "Continuous Profiler",
+        "Database Monitoring",
+        "Log Management",
+        "Live Tail",
+        "Session Replay",
+        "retention filter",
+        "index",
+        "pipeline",
+        "anomaly detection",
+        "outlier detection",
+        "forecast",
+        "downtime",
+        "Error Tracking",
+        "Cloud SIEM",
+        "Cloud Security Management",
+        "Network Device Monitoring",
+        "Cloud Network Monitoring",
+        "Test Optimization",
+        "CI Visibility",
+        "distributed tracing",
+        "flame graph",
+        "integration",
+        "check",
+        "gauge",
+        "count",
+        "rate",
+        "histogram",
+        "distribution",
+        "composite monitor",
+        "scope"
+      ],
+      "technical_verbs": [
+        "instrument",
+        "tag",
+        "mute",
+        "unmute",
+        "monitor",
+        "alert",
+        "trace",
+        "ingest",
+        "index",
+        "aggregate",
+        "query",
+        "throttle",
+        "trigger",
+        "resolve",
+        "notify",
+        "correlate",
+        "scope",
+        "forecast"
+      ],
+      "canonical": {
+        "Datadog": {
+          "aliases": [
+            "dd",
+            "DD"
+          ],
+          "note": "Short forms for the product name Datadog."
+        },
+        "APM": {
+          "aliases": [
+            "Application Performance Monitoring"
+          ],
+          "note": "APM is Datadog's tracing and service performance product."
+        },
+        "RUM": {
+          "aliases": [
+            "Real User Monitoring"
+          ],
+          "note": "RUM captures front-end browser and mobile sessions."
+        },
+        "SLO": {
+          "aliases": [
+            "Service Level Objective"
+          ],
+          "note": "SLO is a target for service reliability."
+        },
+        "SLI": {
+          "aliases": [
+            "Service Level Indicator"
+          ],
+          "note": "SLI is the measured signal behind an SLO."
+        },
+        "Datadog Agent": {
+          "aliases": [
+            "Agent",
+            "dd-agent"
+          ],
+          "note": "The collector process that reports data to Datadog."
+        },
+        "Cloud Security Management": {
+          "aliases": [
+            "CSM"
+          ],
+          "note": "CSM is Datadog's cloud security posture and workload product."
+        },
+        "Synthetic Monitoring": {
+          "aliases": [
+            "Synthetics",
+            "Synthetic tests"
+          ],
+          "note": "Scripted API and browser tests run from Datadog."
+        }
+      },
+      "avoid": {}
+    },
+    "kubernetes": {
+      "label": "Kubernetes",
+      "sources": [
+        "https://kubernetes.io/docs/reference/glossary/",
+        "https://kubernetes.io/docs/concepts/architecture/nodes/",
+        "https://kubernetes.io/docs/concepts/overview/components/",
+        "https://kubernetes.io/docs/setup/production-environment/container-runtimes/"
+      ],
+      "technical_nouns": [
+        "Pod",
+        "ReplicaSet",
+        "ReplicationController",
+        "Deployment",
+        "StatefulSet",
+        "DaemonSet",
+        "Job",
+        "CronJob",
+        "Service",
+        "Ingress",
+        "IngressClass",
+        "EndpointSlice",
+        "ConfigMap",
+        "Secret",
+        "Namespace",
+        "Node",
+        "Cluster",
+        "Container",
+        "Volume",
+        "PersistentVolume",
+        "PersistentVolumeClaim",
+        "StorageClass",
+        "ServiceAccount",
+        "Role",
+        "ClusterRole",
+        "RoleBinding",
+        "ClusterRoleBinding",
+        "NetworkPolicy",
+        "HorizontalPodAutoscaler",
+        "PodDisruptionBudget",
+        "PriorityClass",
+        "ResourceQuota",
+        "LimitRange",
+        "CustomResourceDefinition",
+        "Label",
+        "Selector",
+        "Annotation",
+        "Taint",
+        "Toleration",
+        "Affinity",
+        "control plane",
+        "kube-apiserver",
+        "etcd",
+        "kube-scheduler",
+        "kube-controller-manager",
+        "cloud-controller-manager",
+        "kubelet",
+        "kube-proxy",
+        "container runtime",
+        "ingress controller",
+        "init container",
+        "sidecar container",
+        "ephemeral container",
+        "kubectl",
+        "manifest",
+        "controller",
+        "operator",
+        "admission controller",
+        "finalizer",
+        "Container Runtime Interface",
+        "Container Network Interface",
+        "Container Storage Interface"
+      ],
+      "technical_verbs": [
+        "cordon",
+        "uncordon",
+        "drain",
+        "evict",
+        "taint",
+        "schedule",
+        "reschedule",
+        "scale",
+        "autoscale",
+        "apply",
+        "annotate",
+        "label",
+        "expose",
+        "deploy",
+        "roll out",
+        "roll back",
+        "mount",
+        "bind",
+        "terminate",
+        "preempt",
+        "watch",
+        "reconcile"
+      ],
+      "canonical": {
+        "Kubernetes": {
+          "aliases": [
+            "k8s",
+            "K8s",
+            "kube"
+          ],
+          "note": "k8s is the numeronym (k + 8 letters + s); kube is the common short form."
+        },
+        "control plane": {
+          "aliases": [
+            "master"
+          ],
+          "note": "master is the historical term; docs now use control plane."
+        },
+        "HorizontalPodAutoscaler": {
+          "aliases": [
+            "HPA"
+          ],
+          "note": "HPA scales workload replicas on observed load."
+        },
+        "PersistentVolume": {
+          "aliases": [
+            "PV"
+          ],
+          "note": "Cluster-level storage resource."
+        },
+        "PersistentVolumeClaim": {
+          "aliases": [
+            "PVC"
+          ],
+          "note": "A user request for storage bound to a PersistentVolume."
+        },
+        "CustomResourceDefinition": {
+          "aliases": [
+            "CRD"
+          ],
+          "note": "Defines a custom resource type in the API."
+        },
+        "ServiceAccount": {
+          "aliases": [
+            "SA"
+          ],
+          "note": "Identity for processes running in Pods."
+        },
+        "Container Runtime Interface": {
+          "aliases": [
+            "CRI"
+          ],
+          "note": "The kubelet-to-runtime API (containerd, CRI-O)."
+        },
+        "Container Network Interface": {
+          "aliases": [
+            "CNI"
+          ],
+          "note": "Plugin interface for Pod networking."
+        },
+        "Container Storage Interface": {
+          "aliases": [
+            "CSI"
+          ],
+          "note": "Plugin interface for storage drivers."
+        }
+      },
+      "avoid": {
+        "master node": {
+          "prefer": "control plane node",
+          "reason": "Kubernetes docs name the components that manage the cluster the control plane; master is non-inclusive and no longer used.",
+          "source": "https://kubernetes.io/docs/concepts/overview/components/"
+        },
+        "master": {
+          "prefer": "control plane",
+          "reason": "Same inclusive-naming change; the cluster management layer is the control plane.",
+          "source": "https://kubernetes.io/docs/concepts/architecture/nodes/"
+        },
+        "dockershim": {
+          "prefer": "CRI-compatible container runtime (containerd or CRI-O)",
+          "reason": "dockershim was removed in Kubernetes v1.24; the kubelet requires a runtime that conforms to the Container Runtime Interface.",
+          "source": "https://kubernetes.io/docs/setup/production-environment/container-runtimes/"
+        }
+      }
+    },
+    "docker": {
+      "label": "Docker",
+      "sources": [
+        "https://docs.docker.com/glossary/",
+        "https://github.com/docker/docs/blob/main/data/glossary.yaml",
+        "https://docs.docker.com/reference/dockerfile/",
+        "https://docs.docker.com/compose/intro/history/",
+        "https://docs.docker.com/engine/deprecated/"
+      ],
+      "technical_nouns": [
+        "image",
+        "base image",
+        "multi-architecture image",
+        "container",
+        "layer",
+        "registry",
+        "volume",
+        "persistent storage",
+        "build context",
+        "Docker CLI",
+        "Docker Compose",
+        "Docker Desktop",
+        "Docker Engine",
+        "Docker Hub",
+        "Dockerfile",
+        "tag",
+        "repository",
+        "image digest",
+        "image manifest",
+        "BuildKit",
+        "Docker daemon",
+        "dockerd",
+        "bind mount",
+        "named volume",
+        "network",
+        "port mapping",
+        "swarm",
+        "service",
+        "stack",
+        "secret",
+        "config",
+        "containerd",
+        "plugin",
+        "label",
+        "build stage",
+        "healthcheck",
+        "entrypoint",
+        "Docker context",
+        "Compose file",
+        "container runtime"
+      ],
+      "technical_verbs": [
+        "build",
+        "push",
+        "pull",
+        "run",
+        "commit",
+        "tag",
+        "prune",
+        "pause",
+        "unpause",
+        "stop",
+        "start",
+        "restart",
+        "exec",
+        "attach",
+        "inspect",
+        "publish",
+        "scale",
+        "load",
+        "save",
+        "export",
+        "import",
+        "mount"
+      ],
+      "canonical": {
+        "Docker Compose": {
+          "aliases": [
+            "Compose",
+            "docker compose",
+            "docker-compose"
+          ],
+          "note": "Current CLI is invoked as docker compose (Compose V2); docker-compose is the legacy V1 binary."
+        },
+        "Docker Engine": {
+          "aliases": [
+            "dockerd",
+            "Docker daemon"
+          ],
+          "note": "dockerd is the daemon process of Docker Engine."
+        },
+        "BuildKit": {
+          "aliases": [
+            "buildkit"
+          ],
+          "note": "The default build backend for Docker builds."
+        },
+        "image": {
+          "aliases": [
+            "Docker image"
+          ],
+          "note": "A read-only template used to create containers."
+        },
+        "registry": {
+          "aliases": [
+            "Docker registry"
+          ],
+          "note": "A service that stores and distributes images."
+        },
+        "Docker Hub": {
+          "aliases": [
+            "Hub"
+          ],
+          "note": "Docker's hosted public registry."
+        }
+      },
+      "avoid": {
+        "MAINTAINER": {
+          "prefer": "LABEL org.opencontainers.image.authors",
+          "reason": "The MAINTAINER Dockerfile instruction is deprecated; LABEL is the flexible replacement for image metadata.",
+          "source": "https://docs.docker.com/reference/dockerfile/"
+        },
+        "docker-compose": {
+          "prefer": "docker compose",
+          "reason": "Compose V1 (the Python docker-compose binary) reached end of life; Compose V2 is invoked as docker compose.",
+          "source": "https://docs.docker.com/compose/intro/history/"
+        },
+        "container links": {
+          "prefer": "user-defined bridge network",
+          "reason": "Legacy container links (--link) are a deprecated Engine feature; connect containers with user-defined networks instead.",
+          "source": "https://docs.docker.com/engine/deprecated/"
+        }
+      }
+    },
+    "git": {
+      "label": "Git",
+      "sources": [
+        "https://git-scm.com/docs/gitglossary",
+        "https://git-scm.com/docs/git-init",
+        "https://git-scm.com/book/en/v2",
+        "https://lore.kernel.org/git/pull.1274.git.1657718450.gitgitgadget@gmail.com/T/",
+        "https://inclusivenaming.org/word-lists/tier-1/whitelist/"
+      ],
+      "technical_nouns": [
+        "repository",
+        "bare repository",
+        "working tree",
+        "worktree",
+        "index",
+        "object database",
+        "object",
+        "object name",
+        "commit",
+        "commit object",
+        "tree object",
+        "blob object",
+        "tag object",
+        "ref",
+        "HEAD",
+        "head",
+        "branch",
+        "detached HEAD",
+        "tag",
+        "annotated tag",
+        "lightweight tag",
+        "remote",
+        "remote-tracking branch",
+        "upstream branch",
+        "refspec",
+        "reflog",
+        "stash entry",
+        "submodule",
+        "pack",
+        "packfile",
+        "revision",
+        "fast-forward",
+        "merge commit",
+        "conflict",
+        "hook",
+        "hunk",
+        "dangling object",
+        "unreachable object",
+        "origin",
+        "gitdir"
+      ],
+      "technical_verbs": [
+        "init",
+        "clone",
+        "add",
+        "stage",
+        "commit",
+        "amend",
+        "checkout",
+        "switch",
+        "restore",
+        "branch",
+        "merge",
+        "rebase",
+        "cherry-pick",
+        "revert",
+        "reset",
+        "fetch",
+        "pull",
+        "push",
+        "stash",
+        "tag",
+        "prune",
+        "bisect",
+        "diff",
+        "log"
+      ],
+      "canonical": {
+        "repository": {
+          "aliases": [
+            "repo"
+          ],
+          "note": "\"repo\" is common shorthand; the glossary term is \"repository\"."
+        },
+        "working tree": {
+          "aliases": [
+            "working directory"
+          ],
+          "note": "Glossary uses \"working tree\". \"worktree\" is the distinct linked-worktree feature (git worktree)."
+        },
+        "index": {
+          "aliases": [
+            "staging area",
+            "cache"
+          ],
+          "note": "Glossary term is \"index\". \"staging area\" and \"cache\" are informal synonyms for the same store."
+        },
+        "remote-tracking branch": {
+          "aliases": [
+            "tracking branch"
+          ],
+          "note": "A ref that follows a branch on a remote, e.g. origin/main."
+        },
+        "object name": {
+          "aliases": [
+            "SHA-1",
+            "hash",
+            "commit id",
+            "commit hash"
+          ],
+          "note": "Glossary term is \"object name\" (a 40-hex or abbreviated hash)."
+        },
+        "pull request": {
+          "aliases": [
+            "PR",
+            "merge request",
+            "MR"
+          ],
+          "note": "Not a core Git concept. \"PR\" (GitHub) and \"MR\" (GitLab) are platform features; the Git-native analog is git request-pull plus fetch/merge."
+        }
+      },
+      "avoid": {
+        "master": {
+          "prefer": "main",
+          "reason": "\"master\" is the historic Git default branch name and is still the current fallback, but git-init documents that the default will change to \"main\" in Git 3.0 and is already overridable via init.defaultBranch. \"main\" is the widely preferred name and the default on GitHub and GitLab.",
+          "source": "https://git-scm.com/docs/git-init"
+        },
+        "whitelist": {
+          "prefer": "allowlist",
+          "reason": "Non-inclusive and non-self-describing. Inclusive Naming Initiative tier-1 replacement; adopted across the Git project.",
+          "source": "https://inclusivenaming.org/word-lists/tier-1/whitelist/"
+        },
+        "blacklist": {
+          "prefer": "denylist",
+          "reason": "Non-inclusive and non-self-describing. The Git project moved to \"allowlist\"/\"denylist\" tree-wide because the terms are self-defining.",
+          "source": "https://lore.kernel.org/git/pull.1274.git.1657718450.gitgitgadget@gmail.com/T/"
+        }
+      }
+    },
+    "jira": {
+      "label": "Jira",
+      "sources": [
+        "https://support.atlassian.com/jira-software-cloud/docs/what-is-an-issue/",
+        "https://support.atlassian.com/jira-software-cloud/docs/use-your-scrum-backlog/",
+        "https://support.atlassian.com/jira-software-cloud/docs/manage-epics-in-a-scrum-project/",
+        "https://www.atlassian.com/agile/project-management/epics-stories-themes",
+        "https://www.atlassian.com/agile/scrum/backlog-refinement",
+        "https://support.atlassian.com/jira-cloud-administration/"
+      ],
+      "technical_nouns": [
+        "work item",
+        "issue",
+        "work item key",
+        "issue key",
+        "issue type",
+        "epic",
+        "story",
+        "user story",
+        "task",
+        "subtask",
+        "bug",
+        "board",
+        "scrum board",
+        "kanban board",
+        "backlog",
+        "sprint",
+        "story point",
+        "workflow",
+        "status",
+        "transition",
+        "resolution",
+        "component",
+        "version",
+        "release",
+        "fix version",
+        "label",
+        "project",
+        "project key",
+        "swimlane",
+        "column",
+        "card",
+        "assignee",
+        "reporter",
+        "priority",
+        "JQL",
+        "dashboard",
+        "gadget",
+        "roadmap",
+        "timeline",
+        "epic burndown",
+        "velocity",
+        "custom field",
+        "screen",
+        "permission scheme",
+        "notification scheme",
+        "quick filter"
+      ],
+      "technical_verbs": [
+        "assign",
+        "transition",
+        "resolve",
+        "reopen",
+        "close",
+        "triage",
+        "rank",
+        "estimate",
+        "log work",
+        "comment",
+        "watch",
+        "clone",
+        "move",
+        "link",
+        "prioritize",
+        "refine",
+        "plan",
+        "filter"
+      ],
+      "canonical": {
+        "work item": {
+          "aliases": [
+            "issue",
+            "ticket",
+            "card"
+          ],
+          "note": "Jira Cloud renamed \"issue\" to \"work item\" in the UI (the REST API still uses \"issue\"). \"ticket\" is JSM/informal; \"card\" is the board representation of a work item."
+        },
+        "backlog refinement": {
+          "aliases": [
+            "grooming",
+            "backlog grooming",
+            "refinement"
+          ],
+          "note": "Atlassian agile guidance uses \"backlog refinement\" for the ongoing activity of reviewing and re-ordering the backlog."
+        },
+        "story point": {
+          "aliases": [
+            "points",
+            "SP"
+          ],
+          "note": "Unit of relative estimation; \"story point\" is the canonical Atlassian term."
+        },
+        "subtask": {
+          "aliases": [
+            "sub-task"
+          ],
+          "note": "A child work item of a standard work item."
+        },
+        "JQL": {
+          "aliases": [
+            "Jira Query Language"
+          ],
+          "note": "Structured search language for Jira; keep the acronym uppercase."
+        }
+      },
+      "avoid": {
+        "grooming": {
+          "prefer": "backlog refinement",
+          "reason": "\"grooming\" (backlog grooming) has fallen out of favor in the agile community due to negative connotations; Atlassian documents the activity as \"backlog refinement\".",
+          "source": "https://www.atlassian.com/agile/scrum/backlog-refinement"
+        },
+        "whitelist": {
+          "prefer": "allowlist",
+          "reason": "Non-inclusive; Atlassian administration docs use \"allowlist\" for IP and domain allow rules.",
+          "source": "https://support.atlassian.com/jira-cloud-administration/"
+        },
+        "blacklist": {
+          "prefer": "denylist",
+          "reason": "Non-inclusive and non-self-describing; use \"denylist\" (or \"blocklist\") for blocked entries.",
+          "source": "https://inclusivenaming.org/word-lists/tier-1/whitelist/"
+        }
+      }
+    },
+    "opsgenie": {
+      "label": "Opsgenie",
+      "sources": [
+        "https://support.atlassian.com/opsgenie/docs/learn-about-alert-management-in-opsgenie/",
+        "https://support.atlassian.com/opsgenie/docs/how-do-escalations-work-in-opsgenie/",
+        "https://support.atlassian.com/opsgenie/docs/acknowledge-and-unacknowledge-an-alert/",
+        "https://support.atlassian.com/opsgenie/docs/snooze-an-alert/",
+        "https://support.atlassian.com/opsgenie/docs/close-and-delete-an-alert/",
+        "https://support.atlassian.com/opsgenie/docs/escalate-an-alert/",
+        "https://support.atlassian.com/opsgenie/docs/how-to-use-alert-actions/",
+        "https://docs.opsgenie.com/docs"
+      ],
+      "technical_nouns": [
+        "alert",
+        "alert status",
+        "incident",
+        "on-call schedule",
+        "schedule",
+        "rotation",
+        "escalation",
+        "escalation policy",
+        "escalation rule",
+        "routing rule",
+        "team routing rule",
+        "notification rule",
+        "responder",
+        "team",
+        "user",
+        "integration",
+        "priority",
+        "tag",
+        "alias",
+        "source",
+        "entity",
+        "deduplication",
+        "heartbeat",
+        "maintenance",
+        "schedule override",
+        "notification",
+        "alert action",
+        "custom action",
+        "alert policy",
+        "notification policy",
+        "quiet hours",
+        "forwarding rule",
+        "stakeholder",
+        "service",
+        "on-call participant"
+      ],
+      "technical_verbs": [
+        "acknowledge",
+        "unacknowledge",
+        "close",
+        "delete",
+        "snooze",
+        "escalate",
+        "assign",
+        "notify",
+        "route",
+        "deduplicate",
+        "create",
+        "update",
+        "take ownership",
+        "add responder",
+        "add note",
+        "override",
+        "forward",
+        "trigger"
+      ],
+      "canonical": {
+        "Opsgenie": {
+          "aliases": [
+            "OpsGenie",
+            "Ops Genie",
+            "opsgenie"
+          ],
+          "note": "Atlassian writes the product name as \"Opsgenie\" (one word, single capital O)."
+        },
+        "on-call schedule": {
+          "aliases": [
+            "schedule",
+            "rotation",
+            "on-call rotation"
+          ],
+          "note": "A schedule contains one or more rotations that define who is on call and when."
+        },
+        "escalation policy": {
+          "aliases": [
+            "escalation"
+          ],
+          "note": "When an alert's responders field is set to an escalation policy, Opsgenie uses it to decide who to notify, when, and in what order."
+        },
+        "responder": {
+          "aliases": [
+            "recipient"
+          ],
+          "note": "Newer Opsgenie UI/API v2 uses \"responder\" (user, team, or escalation notified about an alert). \"recipient\" is the older term."
+        },
+        "alias": {
+          "aliases": [
+            "dedup key",
+            "deduplication key"
+          ],
+          "note": "Client-defined identifier used to de-duplicate alerts; alerts with the same alias are merged."
+        }
+      },
+      "avoid": {
+        "recipient": {
+          "prefer": "responder",
+          "reason": "Opsgenie standardized on \"responder\" for the users, teams, and escalations notified about an alert; \"recipient\" is the legacy v1 term.",
+          "source": "https://support.atlassian.com/opsgenie/docs/learn-about-alert-management-in-opsgenie/"
+        },
+        "whitelist": {
+          "prefer": "allowlist",
+          "reason": "Non-inclusive and non-self-describing; use \"allowlist\" for allowed IPs and integration sources.",
+          "source": "https://inclusivenaming.org/word-lists/tier-1/whitelist/"
+        },
+        "blacklist": {
+          "prefer": "denylist",
+          "reason": "Non-inclusive and non-self-describing; use \"denylist\" (or \"blocklist\") for blocked entries.",
+          "source": "https://inclusivenaming.org/word-lists/tier-1/whitelist/"
+        }
+      }
+    },
+    "csharp": {
+      "label": "C#",
+      "sources": [
+        "https://learn.microsoft.com/dotnet/csharp/language-reference/language-specification/types",
+        "https://learn.microsoft.com/dotnet/csharp/language-reference/builtin-types/nullable-reference-types",
+        "https://learn.microsoft.com/dotnet/csharp/language-reference/builtin-types/nullable-value-types",
+        "https://learn.microsoft.com/dotnet/csharp/fundamentals/null-safety/nullable-reference-types",
+        "https://learn.microsoft.com/dotnet/csharp/fundamentals/statements/linq",
+        "https://learn.microsoft.com/dotnet/csharp/language-reference/operators/null-forgiving",
+        "https://learn.microsoft.com/dotnet/csharp/language-reference/keywords/required"
+      ],
+      "technical_nouns": [
+        "delegate",
+        "event",
+        "record",
+        "record struct",
+        "struct",
+        "class",
+        "interface",
+        "enum",
+        "namespace",
+        "assembly",
+        "attribute",
+        "property",
+        "indexer",
+        "field",
+        "method",
+        "constructor",
+        "finalizer",
+        "operator",
+        "nullable reference type",
+        "nullable value type",
+        "generic",
+        "type parameter",
+        "constraint",
+        "extension method",
+        "lambda expression",
+        "anonymous type",
+        "tuple",
+        "LINQ query",
+        "query expression",
+        "async method",
+        "iterator",
+        "pattern matching",
+        "boxing",
+        "array",
+        "collection expression",
+        "null-forgiving operator",
+        "primary constructor",
+        "top-level statement",
+        "partial class",
+        "abstract class",
+        "sealed class",
+        "value type",
+        "reference type",
+        "span",
+        "required member"
+      ],
+      "technical_verbs": [
+        "compile",
+        "build",
+        "instantiate",
+        "override",
+        "implement",
+        "inherit",
+        "derive",
+        "overload",
+        "cast",
+        "box",
+        "unbox",
+        "dispose",
+        "await",
+        "yield",
+        "throw",
+        "catch",
+        "serialize",
+        "deserialize",
+        "marshal",
+        "dereference",
+        "initialize",
+        "annotate",
+        "deconstruct",
+        "enumerate"
+      ],
+      "canonical": {
+        "nullable reference type": {
+          "aliases": [
+            "NRT",
+            "nullable reference"
+          ],
+          "note": "A reference type T? in a nullable-aware context. Same .NET type as T; the compiler tracks null-state. Distinct from a nullable value type."
+        },
+        "nullable value type": {
+          "aliases": [
+            "Nullable<T>",
+            "T?"
+          ],
+          "note": "An instance of System.Nullable<T> that adds a null value to a value type. Distinct from a nullable reference type."
+        },
+        "LINQ query": {
+          "aliases": [
+            "query expression"
+          ],
+          "note": "Language-Integrated Query. Write in query syntax (from/where/select) or method syntax; both compile to the same operators."
+        },
+        "delegate": {
+          "aliases": [
+            "delegate type"
+          ],
+          "note": "A reference type that references a method. Basis for events and lambda expressions."
+        }
+      },
+      "avoid": {
+        "Linq": {
+          "prefer": "LINQ",
+          "reason": "acronym for Language-Integrated Query, always written in uppercase in the docs",
+          "source": "https://learn.microsoft.com/dotnet/csharp/fundamentals/statements/linq"
+        },
+        "nullable type": {
+          "prefer": "nullable reference type or nullable value type",
+          "reason": "the two are different .NET constructs; the docs document them on separate pages and the ambiguous term hides which one is meant",
+          "source": "https://learn.microsoft.com/dotnet/csharp/language-reference/builtin-types/nullable-reference-types"
+        },
+        "C-Sharp": {
+          "prefer": "C#",
+          "reason": "the language name is C# in official documentation",
+          "source": "https://learn.microsoft.com/dotnet/csharp/language-reference/language-specification/types"
+        }
+      }
+    },
+    "fsharp": {
+      "label": "F#",
+      "sources": [
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/discriminated-unions",
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/active-patterns",
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/pattern-matching",
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/records",
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/computation-expressions",
+        "https://learn.microsoft.com/dotnet/fsharp/language-reference/units-of-measure",
+        "https://learn.microsoft.com/dotnet/fsharp/tutorials/type-providers/",
+        "https://learn.microsoft.com/dotnet/fsharp/tutorials/functional-programming-concepts",
+        "https://learn.microsoft.com/dotnet/fsharp/style-guide/conventions",
+        "https://learn.microsoft.com/dotnet/fsharp/tour",
+        "https://fsharp.org"
+      ],
+      "technical_nouns": [
+        "discriminated union",
+        "single-case discriminated union",
+        "struct discriminated union",
+        "record",
+        "anonymous record",
+        "tuple",
+        "list",
+        "array",
+        "sequence",
+        "option",
+        "value option",
+        "result",
+        "computation expression",
+        "active pattern",
+        "partial active pattern",
+        "pattern matching",
+        "match expression",
+        "module",
+        "namespace",
+        "function",
+        "value",
+        "let binding",
+        "currying",
+        "partial application",
+        "higher-order function",
+        "pipeline operator",
+        "type provider",
+        "units of measure",
+        "generic",
+        "type abbreviation",
+        "interface",
+        "class",
+        "abstract class",
+        "object expression",
+        "member",
+        "mutable value",
+        "immutable value",
+        "recursive function",
+        "closure",
+        "reference cell"
+      ],
+      "technical_verbs": [
+        "compile",
+        "bind",
+        "curry",
+        "pipe",
+        "match",
+        "decompose",
+        "partition",
+        "wrap",
+        "unwrap",
+        "annotate",
+        "instantiate",
+        "implement",
+        "infer",
+        "evaluate",
+        "yield",
+        "mutate",
+        "compose",
+        "map",
+        "fold",
+        "filter"
+      ],
+      "canonical": {
+        "discriminated union": {
+          "aliases": [
+            "DU",
+            "union type"
+          ],
+          "note": "A type whose value is one of several named cases, each optionally carrying data. Has structural equality."
+        },
+        "computation expression": {
+          "aliases": [
+            "CE"
+          ],
+          "note": "A convenient syntax for computations that can be sequenced and combined, such as async, seq, and query."
+        },
+        "pipeline operator": {
+          "aliases": [
+            "pipe operator",
+            "forward pipe",
+            "|>"
+          ],
+          "note": "The |> operator passes a value as the last argument to a function, so calls read left to right."
+        },
+        "immutable value": {
+          "aliases": [
+            "immutable binding"
+          ],
+          "note": "F# values are immutable by default; use the mutable keyword to opt in to in-place change."
+        },
+        "units of measure": {
+          "aliases": [
+            "unit of measure",
+            "UoM"
+          ],
+          "note": "Compile-time annotations on numeric types for dimensions such as length or mass. Checked at compile time, erased at run time."
+        }
+      },
+      "avoid": {
+        "F-Sharp": {
+          "prefer": "F#",
+          "reason": "the language name is F# in official documentation",
+          "source": "https://learn.microsoft.com/dotnet/fsharp/tour"
+        },
+        "enum (for a discriminated union)": {
+          "prefer": "discriminated union",
+          "reason": "an F# enumeration and a discriminated union are different constructs; a DU carries data per case while an enum maps names to constant values",
+          "source": "https://learn.microsoft.com/dotnet/fsharp/language-reference/discriminated-unions"
+        },
+        "variable (for a let binding)": {
+          "prefer": "value",
+          "reason": "F# let bindings are immutable values by default, not variables; the docs reserve variable for mutable state",
+          "source": "https://learn.microsoft.com/dotnet/fsharp/tutorials/functional-programming-concepts"
+        }
+      }
+    },
+    "dotnet": {
+      "label": ".NET",
+      "sources": [
+        "https://learn.microsoft.com/dotnet/standard/clr",
+        "https://learn.microsoft.com/dotnet/standard/glossary",
+        "https://learn.microsoft.com/dotnet/standard/managed-code",
+        "https://learn.microsoft.com/dotnet/standard/managed-execution-process",
+        "https://learn.microsoft.com/dotnet/standard/frameworks",
+        "https://learn.microsoft.com/dotnet/core/whats-new/dotnet-5",
+        "https://learn.microsoft.com/dotnet/core/compatibility/sdk/5.0/targetframework-name-change",
+        "https://learn.microsoft.com/dotnet/core/compatibility/core-libraries/5.0/frameworkdescription-returns-net-not-net-core",
+        "https://learn.microsoft.com/dotnet/framework/get-started/overview",
+        "https://learn.microsoft.com/nuget/consume-packages/package-restore",
+        "https://learn.microsoft.com/nuget/nuget-org/publish-a-package",
+        "https://learn.microsoft.com/nuget/reference/target-frameworks"
+      ],
+      "technical_nouns": [
+        "common language runtime",
+        "runtime",
+        "managed code",
+        "unmanaged code",
+        "managed data",
+        "base class library",
+        "assembly",
+        "assembly manifest",
+        "metadata",
+        "common intermediate language",
+        "just-in-time compiler",
+        "garbage collector",
+        "garbage collection",
+        "NuGet package",
+        "package reference",
+        "target framework",
+        "target framework moniker",
+        ".NET SDK",
+        "framework-dependent deployment",
+        "self-contained deployment",
+        "runtime identifier",
+        "common language specification",
+        "common type system",
+        "reflection",
+        "ahead-of-time compilation",
+        "trimming",
+        "single-file app",
+        ".NET Standard",
+        "class library",
+        "shared framework",
+        "type safety",
+        "strong naming",
+        "platform invoke",
+        "COM interop",
+        ".NET",
+        ".NET Framework",
+        "portable executable"
+      ],
+      "technical_verbs": [
+        "compile",
+        "build",
+        "publish",
+        "restore",
+        "deploy",
+        "target",
+        "reference",
+        "trim",
+        "marshal",
+        "host",
+        "execute",
+        "reflect",
+        "serialize",
+        "deserialize",
+        "load",
+        "resolve"
+      ],
+      "canonical": {
+        ".NET": {
+          "aliases": [
+            "modern .NET",
+            ".NET 5+",
+            ".NET Core (historical)"
+          ],
+          "note": "The current unified, cross-platform implementation (5.0 and later). It succeeds .NET Core; the version was named 5 rather than 4 to avoid confusion with .NET Framework 4.x. Distinct from .NET Framework."
+        },
+        ".NET Framework": {
+          "aliases": [
+            "full framework",
+            "classic .NET"
+          ],
+          "note": "The original Windows-only implementation (versions 1.x through 4.x). Still shipped with Windows, but new development should use modern .NET. Distinct from .NET (5+); the two are different products, not versions of one line."
+        },
+        "common language runtime": {
+          "aliases": [
+            "CLR",
+            "Core CLR"
+          ],
+          "note": "The execution engine for managed code: memory management, JIT compilation, type safety. The .NET (Core) CLR is cross-platform; the .NET Framework CLR is Windows only."
+        },
+        "garbage collector": {
+          "aliases": [
+            "GC"
+          ],
+          "note": "The CLR subsystem that reclaims memory for managed objects no longer in use."
+        },
+        "base class library": {
+          "aliases": [
+            "BCL",
+            "core .NET libraries",
+            "runtime libraries",
+            "framework libraries"
+          ],
+          "note": "The System.* (and limited Microsoft.*) libraries that higher-level frameworks build on."
+        },
+        "common intermediate language": {
+          "aliases": [
+            "CIL",
+            "IL",
+            "MSIL"
+          ],
+          "note": "The CPU-independent instruction set that compilers emit; the JIT compiler converts it to native code at run time."
+        },
+        "target framework moniker": {
+          "aliases": [
+            "TFM"
+          ],
+          "note": "The canonical framework identity (for example .NETCoreApp,Version=v10.0). The TargetFramework project value (net10.0) is a friendly alias the SDK translates into the TFM."
+        },
+        "just-in-time compiler": {
+          "aliases": [
+            "JIT",
+            "JIT compiler"
+          ],
+          "note": "Translates CIL to native machine code at execution time."
+        }
+      },
+      "avoid": {
+        ".NET Core": {
+          "prefer": ".NET",
+          "reason": "the Core suffix was dropped at .NET 5 to mark it as the main implementation going forward; the last release named .NET Core was 3.1",
+          "source": "https://learn.microsoft.com/dotnet/core/whats-new/dotnet-5"
+        },
+        ".NET Core 4": {
+          "prefer": ".NET 5",
+          "reason": "version numbers 4.x were skipped to avoid confusion with .NET Framework 4.x; .NET Core 3.1 was followed by .NET 5",
+          "source": "https://learn.microsoft.com/dotnet/core/whats-new/dotnet-5"
+        },
+        "netcoreapp": {
+          "prefer": "net",
+          "reason": "the short target-framework moniker changed from netcoreapp (for example netcoreapp3.1) to net (for example net5.0) starting in .NET 5",
+          "source": "https://learn.microsoft.com/dotnet/core/compatibility/sdk/5.0/targetframework-name-change"
+        },
+        ".Net": {
+          "prefer": ".NET",
+          "reason": "the platform name is .NET, written with an uppercase NET, throughout the documentation",
+          "source": "https://learn.microsoft.com/dotnet/standard/glossary"
+        },
+        "Nuget": {
+          "prefer": "NuGet",
+          "reason": "the package manager name is NuGet with an uppercase G in official documentation",
+          "source": "https://learn.microsoft.com/nuget/consume-packages/package-restore"
+        }
+      }
+    },
+    "go": {
+      "label": "Go",
+      "sources": [
+        "https://go.dev/doc/faq",
+        "https://go.dev/doc/effective_go",
+        "https://go.dev/ref/spec",
+        "https://go.dev/ref/mod",
+        "https://pkg.go.dev/sync",
+        "https://pkg.go.dev/context",
+        "https://pkg.go.dev/encoding/json",
+        "https://pkg.go.dev/cmd/vet"
+      ],
+      "technical_nouns": [
+        "goroutine",
+        "channel",
+        "buffered channel",
+        "unbuffered channel",
+        "select statement",
+        "interface",
+        "interface value",
+        "struct",
+        "struct tag",
+        "slice",
+        "array",
+        "map",
+        "package",
+        "module",
+        "method",
+        "method set",
+        "receiver",
+        "pointer",
+        "function",
+        "closure",
+        "defer statement",
+        "panic",
+        "error",
+        "constant",
+        "variable",
+        "type",
+        "type parameter",
+        "generic",
+        "embedding",
+        "embedded field",
+        "blank identifier",
+        "rune",
+        "byte",
+        "string",
+        "zero value",
+        "nil",
+        "mutex",
+        "RWMutex",
+        "WaitGroup",
+        "Once",
+        "Cond",
+        "context",
+        "deadline",
+        "cancellation signal",
+        "garbage collection",
+        "go.mod file",
+        "vendor directory"
+      ],
+      "technical_verbs": [
+        "compile",
+        "defer",
+        "panic",
+        "recover",
+        "marshal",
+        "unmarshal",
+        "vendor",
+        "vet",
+        "allocate",
+        "embed",
+        "close",
+        "send",
+        "receive",
+        "range",
+        "implement",
+        "satisfy",
+        "lock",
+        "unlock",
+        "cancel",
+        "dereference",
+        "initialize"
+      ],
+      "canonical": {
+        "Go": {
+          "aliases": [
+            "Golang",
+            "golang",
+            "GoLang",
+            "GO",
+            "go-lang"
+          ],
+          "note": "The language name is just Go. The 'golang' moniker came only from the original web domain golang.org and is a handy label/tag (#golang), not the formal name (go.dev/doc/faq). The plural 'goroutines' is fine."
+        },
+        "goroutine": {
+          "aliases": [
+            "go routine",
+            "go-routine",
+            "green thread"
+          ],
+          "note": "One word, lowercase: goroutine. Named to avoid the inaccurate connotations of thread/coroutine/process (go.dev/doc/effective_go)."
+        },
+        "defer statement": {
+          "aliases": [
+            "deferred call",
+            "defer"
+          ],
+          "note": "The construct is the 'defer statement'; the scheduled call is the 'deferred function'. Use 'defer' as the verb (go.dev/doc/effective_go)."
+        }
+      },
+      "avoid": {
+        "Golang": {
+          "replacement": "Go",
+          "reason": "Not the formal language name. The FAQ states the name is 'just plain Go, regardless'; golang is only the old web domain and social tag. Use Go in prose; 'golang' is acceptable only in package paths, tags, or URLs.",
+          "source": "https://go.dev/doc/faq"
+        },
+        "GO": {
+          "replacement": "Go",
+          "reason": "All-caps GO is wrong. Although the logo uses two capital letters, the language name is written Go.",
+          "source": "https://go.dev/doc/faq"
+        },
+        "go routine": {
+          "replacement": "goroutine",
+          "reason": "Spelled as one word, lowercase. 'go routine', 'go-routine', and 'green thread' are non-canonical.",
+          "source": "https://go.dev/doc/effective_go"
+        }
+      }
+    },
+    "javascript": {
+      "label": "JavaScript",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_generators",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let",
+        "https://developer.mozilla.org/en-US/docs/Glossary/Hoisting",
+        "https://tc39.es/ecma262/"
+      ],
+      "technical_nouns": [
+        "promise",
+        "executor",
+        "promise chain",
+        "callback",
+        "event loop",
+        "microtask",
+        "microtask queue",
+        "task",
+        "closure",
+        "lexical environment",
+        "lexical scoping",
+        "scope",
+        "block scope",
+        "function scope",
+        "nested function",
+        "hoisting",
+        "temporal dead zone",
+        "prototype",
+        "prototype chain",
+        "arrow function",
+        "async function",
+        "generator",
+        "generator function",
+        "iterator",
+        "iterable",
+        "iteration protocol",
+        "yield expression",
+        "module",
+        "named export",
+        "default export",
+        "module specifier",
+        "destructuring",
+        "spread syntax",
+        "rest parameter",
+        "event listener",
+        "event",
+        "class",
+        "constructor",
+        "method",
+        "property",
+        "getter",
+        "setter",
+        "template literal",
+        "symbol",
+        "higher-order function",
+        "first-class function",
+        "immediately invoked function expression (IIFE)"
+      ],
+      "technical_verbs": [
+        "resolve",
+        "reject",
+        "await",
+        "bind",
+        "call",
+        "apply",
+        "serialize",
+        "parse",
+        "transpile",
+        "bundle",
+        "hoist",
+        "iterate",
+        "destructure",
+        "chain",
+        "throw",
+        "catch",
+        "invoke",
+        "dispatch",
+        "yield",
+        "instantiate"
+      ],
+      "canonical": {
+        "JavaScript": {
+          "aliases": [
+            "JS",
+            "Javascript",
+            "javascript",
+            "JavaScript (JS)"
+          ],
+          "note": "Canonical casing is JavaScript (capital J, capital S). 'JS' is an accepted short form but spell out JavaScript on first use in formal prose. 'Javascript'/'javascript' are misspellings of the name."
+        },
+        "ECMAScript": {
+          "aliases": [
+            "ES",
+            "ES6",
+            "ES2015+"
+          ],
+          "note": "ECMAScript is the standard/specification name (TC39, tc39.es). It is NOT a synonym for JavaScript in prose: JavaScript is the language, ECMAScript is the spec it implements. Version tags like ES2015 refer to spec editions."
+        },
+        "arrow function": {
+          "aliases": [
+            "fat arrow",
+            "lambda",
+            "=> function"
+          ],
+          "note": "Canonical term is 'arrow function'. 'fat arrow' and 'lambda' are informal and non-canonical on MDN."
+        },
+        "immediately invoked function expression (IIFE)": {
+          "aliases": [
+            "IIFE",
+            "self-invoking function",
+            "self-executing function"
+          ],
+          "note": "Canonical is 'immediately invoked function expression (IIFE)'. 'self-invoking'/'self-executing function' are non-canonical."
+        }
+      },
+      "avoid": {
+        "var": {
+          "replacement": "const (or let)",
+          "reason": "MDN style guide and the let reference recommend const over let whenever a variable is not reassigned, and let over var. var is function-scoped and hoisted (initialized as undefined), which causes scoping and hoisting surprises that block-scoped const/let avoid.",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let"
+        },
+        "Javascript": {
+          "replacement": "JavaScript",
+          "reason": "Wrong casing. The proper name is JavaScript with a capital J and capital S.",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises"
+        },
+        "fat arrow": {
+          "replacement": "arrow function",
+          "reason": "Informal slang. MDN's canonical term is 'arrow function'.",
+          "source": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions"
+        },
+        "self-executing function": {
+          "replacement": "immediately invoked function expression (IIFE)",
+          "reason": "Non-canonical. MDN uses 'immediately invoked function expression (IIFE)'.",
+          "source": "https://developer.mozilla.org/en-US/docs/Glossary/IIFE"
+        }
+      }
+    },
+    "oop": {
+      "label": "Object-Oriented Programming",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Glossary/OOP",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Inheritance_and_the_prototype_chain",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/inheritance",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/polymorphism",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/objects",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/tutorials/oop",
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection",
+        "https://en.wikipedia.org/wiki/Object-oriented_programming"
+      ],
+      "technical_nouns": [
+        "class",
+        "object",
+        "instance",
+        "inheritance",
+        "polymorphism",
+        "encapsulation",
+        "abstraction",
+        "method",
+        "field",
+        "property",
+        "member",
+        "interface",
+        "constructor",
+        "finalizer",
+        "composition",
+        "dependency injection",
+        "inversion of control",
+        "service container",
+        "base class",
+        "derived class",
+        "abstract class",
+        "static class",
+        "access modifier",
+        "accessibility",
+        "generic type",
+        "record",
+        "struct",
+        "namespace"
+      ],
+      "technical_verbs": [
+        "instantiate",
+        "inherit",
+        "derive",
+        "override",
+        "overload",
+        "encapsulate",
+        "compose",
+        "delegate",
+        "implement",
+        "extend",
+        "initialize"
+      ],
+      "canonical": {
+        "object-oriented programming": {
+          "aliases": [
+            "OOP",
+            "OO"
+          ],
+          "note": "Spell out on first use, then OOP is acceptable. Use 'object-oriented' (hyphenated) as the adjective."
+        },
+        "constructor": {
+          "aliases": [
+            "ctor"
+          ],
+          "note": "Prefer 'constructor' in prose. 'ctor' is code shorthand only."
+        },
+        "finalizer": {
+          "aliases": [
+            "destructor"
+          ],
+          "note": ".NET docs use 'finalizer'; 'destructor' is the C++/C# keyword-level term. Pick one per document."
+        },
+        "dependency injection": {
+          "aliases": [
+            "DI"
+          ],
+          "note": "Spell out first, then DI. It is a technique for achieving inversion of control."
+        },
+        "inversion of control": {
+          "aliases": [
+            "IoC"
+          ],
+          "note": "Spell out first, then IoC."
+        },
+        "base class": {
+          "aliases": [
+            "superclass",
+            "parent class"
+          ],
+          "note": ".NET docs canonical term is 'base class'. Use one label consistently."
+        },
+        "derived class": {
+          "aliases": [
+            "subclass",
+            "child class"
+          ],
+          "note": ".NET docs canonical term is 'derived class'."
+        },
+        "interface": {
+          "aliases": [
+            "iface"
+          ],
+          "note": "Always write 'interface' in prose."
+        }
+      },
+      "avoid": {
+        "override": {
+          "replacement": "override (runtime replacement of a base member) vs overload (same name, different signature)",
+          "reason": "Writers conflate the two. 'Override' means a derived class replaces a virtual base member; 'overload' means multiple methods share a name but differ in parameters. They are unrelated mechanisms.",
+          "source": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/polymorphism"
+        },
+        "inheritance (when composition is meant)": {
+          "replacement": "composition",
+          "reason": "Reusing behavior by holding another object as a member is composition, not inheritance. Do not call a 'has-a' relationship inheritance; inheritance is an 'is-a' relationship.",
+          "source": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/inheritance"
+        },
+        "object (when class is meant)": {
+          "replacement": "class",
+          "reason": "A class is the blueprint (a type definition); an object is a runtime instance allocated from that blueprint. Do not use them interchangeably.",
+          "source": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/"
+        },
+        "interface (when abstract class is meant)": {
+          "replacement": "abstract class",
+          "reason": "An interface declares members with no state or implementation contract role; an abstract class can carry state and partial implementation. Name the exact construct.",
+          "source": "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/object-oriented/"
+        }
+      }
+    },
+    "fp": {
+      "label": "Functional Programming",
+      "sources": [
+        "https://developer.mozilla.org/en-US/docs/Glossary/First-class_Function",
+        "https://developer.mozilla.org/en-US/docs/Glossary/Immutable",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures",
+        "https://learn.microsoft.com/en-us/dotnet/fsharp/what-is-fsharp",
+        "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/",
+        "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching",
+        "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions",
+        "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword",
+        "https://en.wikipedia.org/wiki/Functor",
+        "https://en.wikipedia.org/wiki/Monad_(functional_programming)",
+        "https://en.wikipedia.org/wiki/Referential_transparency"
+      ],
+      "technical_nouns": [
+        "pure function",
+        "immutability",
+        "immutable value",
+        "first-class function",
+        "higher-order function",
+        "closure",
+        "currying",
+        "partial application",
+        "monad",
+        "functor",
+        "recursion",
+        "tail recursion",
+        "referential transparency",
+        "side effect",
+        "pattern matching",
+        "algebraic data type",
+        "discriminated union",
+        "lambda expression",
+        "function composition",
+        "function value",
+        "callback function",
+        "lexical environment",
+        "type inference",
+        "record"
+      ],
+      "technical_verbs": [
+        "compose",
+        "curry",
+        "map",
+        "fold",
+        "reduce",
+        "memoize",
+        "recurse",
+        "filter",
+        "pipe",
+        "apply",
+        "iterate"
+      ],
+      "canonical": {
+        "higher-order function": {
+          "aliases": [
+            "HOF"
+          ],
+          "note": "A function that takes a function as an argument or returns a function. Spell out first, then HOF."
+        },
+        "algebraic data type": {
+          "aliases": [
+            "ADT"
+          ],
+          "note": "Spell out first. Beware collision: ADT can also mean 'abstract data type' in OOP, so avoid the acronym in mixed-domain docs."
+        },
+        "functional programming": {
+          "aliases": [
+            "FP"
+          ],
+          "note": "Spell out on first use, then FP."
+        },
+        "discriminated union": {
+          "aliases": [
+            "DU",
+            "sum type",
+            "tagged union"
+          ],
+          "note": "F# canonical term is 'discriminated union'. 'Sum type' is the type-theory term for the same idea."
+        },
+        "referential transparency": {
+          "aliases": [
+            "ref transparency"
+          ],
+          "note": "An expression is referentially transparent if it can be replaced by its value without changing program behavior."
+        },
+        "first-class function": {
+          "aliases": [
+            "first-class value",
+            "function value"
+          ],
+          "note": "Functions treated like any other value: assigned, passed, and returned. F# docs use 'function value'."
+        },
+        "lambda expression": {
+          "aliases": [
+            "lambda",
+            "anonymous function"
+          ],
+          "note": "An unnamed function. Use 'lambda expression' in formal prose."
+        }
+      },
+      "avoid": {
+        "functor (as a synonym for function)": {
+          "replacement": "functor = a type that can be mapped over (defines map); function = a mapping from inputs to outputs",
+          "reason": "A functor is not a function. In FP a functor is a container/type that implements a lawful 'map' operation. Calling any function object a 'functor' (a C++-ism) confuses readers in an FP context.",
+          "source": "https://en.wikipedia.org/wiki/Functor"
+        },
+        "monad (as 'a wrapper' or vague hand-wave)": {
+          "replacement": "monad = a type with 'return'/unit and 'bind' (flatMap) that obey the monad laws",
+          "reason": "'Monad' has a precise definition: a type constructor plus unit and bind operations satisfying left identity, right identity, and associativity. Do not use it loosely to mean any box or wrapper.",
+          "source": "https://en.wikipedia.org/wiki/Monad_(functional_programming)"
+        },
+        "currying (used to mean partial application)": {
+          "replacement": "currying = converting an n-argument function into nested single-argument functions; partial application = fixing some arguments to get a function of the remaining ones",
+          "reason": "The two are related but distinct. Currying changes a function's shape; partial application supplies some arguments. Name the one you mean.",
+          "source": "https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/"
+        },
+        "pure function (applied to a function with side effects)": {
+          "replacement": "pure function (no side effects, output depends only on inputs) vs impure function",
+          "reason": "A function that performs I/O, mutates shared state, or reads a clock is not pure. Reserve 'pure' for functions that are referentially transparent.",
+          "source": "https://en.wikipedia.org/wiki/Referential_transparency"
+        }
+      }
+    }
+  }
+}

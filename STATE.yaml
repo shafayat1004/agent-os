@@ -1,60 +1,49 @@
-task_id: issues-13-15-versioned-portable
-goal: Make agent-os installations portable and version-pinned (#13) and separate the spec/schema/adapter/implementation version dimensions (#15); establish the GitHub release discipline so each shipped release is tagged and documented
+task_id: ste-glossary-sync-05
+goal: Update the ste-writing skill from the upstream agent-skills repo (glossary-backed terminology), add a regular check that decides whether a glossary update is necessary, document the discipline in SPEC, and bump the release to 0.5.0
 risk_class: reversible
-scope_in: [agentos/cli.py, agentos/initcmd.py, agentos/bootstrap.py, agentos/result.py, tests/test_init.py, tests/test_cli.py, tests/test_self_governance.py, VERSION, SPEC.md, ROADMAP.md, schemas/, templates/, STATE.yaml, evidence/ledger.ndjson, docs/]
-scope_out: [WHITEPAPER.md, .opencode/plugins/agentos.js]
+scope_in: [.claude/skills/ste-writing/, policies/custom-checks.yaml, skills/index.yaml, SPEC.md, VERSION, STATE.yaml, evidence/ledger.ndjson, tests/test_glossary_sync.py]
+scope_out: [WHITEPAPER.md, ROADMAP.md, .opencode/plugins/agentos.js, agentos/]
 acceptance_criteria:
-  - a fresh clone works without the original agent-os checkout path (#13)
-  - the installed agent-os version is discoverable and pinned (#13)
-  - upgrade and rollback procedures exist and are documented (#13)
-  - CI can install or use the same version deterministically (#13)
-  - each version dimension (release, schema, adapter protocol) has a clear name and source of truth (#15)
-  - runtime output reports relevant versions (#15)
-  - schema files include explicit schema_version fields (#15)
-  - the v0.1/v0.3 wording ambiguity in SPEC.md is corrected (#15)
-  - the first GitHub release is cut and documented; future merges that ship update the release section
+  - the ste-writing skill ships the updated glossary.json, SKILL.md, and ste-lint.py from the upstream agent-skills repo
+  - a provenance file pins the glossary content hash and the upstream source
+  - a regular custom check in agentos all validates glossary integrity with no network call
+  - an on-demand tool reports whether an upstream glossary update is necessary
+  - SPEC documents the ste-writing skill data assets and the sync discipline
+  - the full test suite passes and agentos all exits 0
+  - agent-os 0.5.0 is tagged and released on GitHub
 confirmed_facts:
-  - fact: SPEC.md header says "v0.3" but the body mixes "v0.1 spec surface" (the six artifacts) with "v0.3" (the CLI), the exact ambiguity #15 names
-    evidence_ref: SPEC.md lines 1, 30, 71, 355, 432
-  - fact: the CLI has no --version flag and no VERSION file; there are zero git tags and zero GitHub releases
-    evidence_ref: agentos/cli.py argparse setup; `git tag -l` empty; `gh release list` empty
-  - fact: schemas carry no file-level schema_version; evidence.schema.json has an entry-version field (enum [1], added in #12) but no schema-file version; task-state.schema.json and skill.schema.json have no version at all
-    evidence_ref: schemas/evidence.schema.json, schemas/task-state.schema.json, schemas/skill.schema.json
-  - fact: agentos init embeds the absolute agentos_bin path into 7 generated files (pre-tool, stop-check, post-tool, pre-compact, pre-commit, opencode plugin, verification.yaml); if the agent-os checkout moves or is deleted every installed repo's enforcement goes silent
-    evidence_ref: agentos/initcmd.py lines 143-223, 287, 293-311
-  - fact: the opencode plugin already prefers a vendored bin/agentos over the SHARED path (vendored wins, SHARED falls back), so the vendor model is half-built; only the init step does not vendor by default
-    evidence_ref: agentos/initcmd.py _OPENCODE_PLUGIN lines 69-71
-  - fact: the agent-os repo self-hosts its own bin/agentos and is the reference for the vendored model; templates/STATE.yaml ships stop_readiness blocked and init is non-destructive (_write_if_absent)
-    evidence_ref: tests/test_self_governance.py; agentos/initcmd.py _write_if_absent lines 240-251
+  - fact: the ste-writing skill was vendored from the upstream agent-skills repo (commit 153ade3) and carries a 16-domain glossary, an expanded rule catalog, and a regex-or-spaCy linter
+    evidence_ref: .claude/skills/ste-writing/SKILL.md, glossary.json, scripts/ste-lint.py
+  - fact: the v0.4.0 task (issues-13-15-versioned-portable) shipped and merged (PR #40, tag v0.4.0); its seven criteria are retired to obsolete so their file-hash proofs go silent
+    evidence_ref: STATE.yaml criteria status obsolete; git log commit cc4e982
+  - fact: the glossary avoid entries use either a prefer field or a replacement field (both shapes exist in the upstream data), plus a reason and a source
+    evidence_ref: .claude/skills/ste-writing/glossary.json domains go.javascript.avoid
 assumptions: []
 decisions:
-  - decision: three version dimensions, not five: release version (one semver, the git tag, source of truth is the VERSION file), schema_version (per-schema-file integer, additive, independent), adapter protocol version (one integer in the opencode plugin)
-    rationale: the spec document version and the template bundle version collapse into the release version; the spec surface is just "the spec" and evolves by additive change tracked in ROADMAP, not by a separate version label. This kills the v0.1-vs-v0.3 ambiguity #15 names without inventing two more version numbers to keep in sync (pending user sign-off)
-  - decision: vendor-by-default for agentos init; the SHARED absolute-path model becomes opt-in (--shared PATH) for teams that want one checkout across many repos
-    rationale: the vendored model is already half-built (the opencode plugin prefers vendored over SHARED); vendoring fits the zero-dep "drop into any repo without an install step" guarantee (memory 1967); git submodules add complexity and pip violates zero-dep; a single-file bundle is elegant but a bigger build step for later (pending user sign-off)
-  - decision: schema files get a top-level "schema_version" integer; the evidence entry "version" field (added in #12) stays unchanged to avoid a breaking rename hours after it shipped
-    rationale: additive and non-breaking; the two version concepts (file vs entry) are distinct and named distinctly (pending user sign-off)
+  - decision: the regular glossary check is a custom check with on_fail warn, not a built-in validator check, because a stale glossary does not break the validator and the check must never block agentos done
+    rationale: the six built-in checks are the normative spec surface; skill data integrity is a maintenance concern, so it belongs in policies/custom-checks.yaml where repos opt in
+  - decision: the regular check makes no network call; it validates structure and compares the local content hash against a pinned provenance file, so it is deterministic and safe in tests and CI
+    rationale: network in agentos all would make the suite non-deterministic and break offline; the upstream necessity comparison is a separate on-demand or CI-cron command
+  - decision: the content hash excludes volatile metadata (the generated date and the note), so a metadata-only upstream change is not a necessary update
+    rationale: an update is absolutely necessary only when normative term content changes, which is the question the user asked the check to answer
+  - decision: bump the release version to 0.5.0 (minor, feature addition in the 0.x line)
+    rationale: SPEC section 7 says a minor bump marks a feature addition; the glossary-sync check and the skill update are features
 failed_hypotheses: []
 open_questions:
-  - should the first release tag the current main HEAD as 0.3.1 (the release that includes #12 ledger semantics), or 0.4.0 (a minor bump marking the portability+versioning change itself)? semver says 0.3.1 for a fix, 0.4.0 for a feature; #13/#15 are features so 0.4.0 is correct, but the repo has never released so 0.3.1 is defensible as "first tagged release of the 0.3 line"
+  - should the glossary-sync check ship in templates/policies/custom-checks.yaml so target repos opt in by default, or stay agent-os-internal until a skill-vendor mechanism exists
 changed_files:
-  - VERSION
-  - agentos/version.py
-  - agentos/upgrade.py
-  - agentos/doctor.py
-  - agentos/checks/custom.py
-  - agentos/cli.py
-  - agentos/initcmd.py
-  - schemas/evidence.schema.json
-  - schemas/task-state.schema.json
-  - schemas/skill.schema.json
+  - .claude/skills/ste-writing/SKILL.md
+  - .claude/skills/ste-writing/scripts/ste-lint.py
+  - .claude/skills/ste-writing/scripts/glossary-sync.py
+  - .claude/skills/ste-writing/glossary.json
+  - .claude/skills/ste-writing/glossary.provenance.json
+  - policies/custom-checks.yaml
+  - skills/index.yaml
   - SPEC.md
-  - tests/test_init.py
-  - tests/test_self_governance.py
-  - tests/test_v04_features.py
-  - templates/policies/custom-checks.yaml
+  - VERSION
   - STATE.yaml
   - evidence/ledger.ndjson
+  - tests/test_glossary_sync.py
 verification_status:
   format: n/a
   compile: n/a
@@ -62,20 +51,41 @@ verification_status:
   policy: pass
   security: n/a
 criteria:
+  - id: c-glossary-vendored
+    statement: the ste-writing skill ships the updated glossary, SKILL.md, and linter from upstream
+  - id: c-glossary-provenance
+    statement: a provenance file pins the glossary content hash and the upstream source
+  - id: c-glossary-regular-check
+    statement: a regular custom check in agentos all validates glossary integrity with no network call
+  - id: c-glossary-necessity-tool
+    statement: an on-demand tool reports whether an upstream glossary update is necessary
+  - id: c-spec-glossary-docs
+    statement: SPEC documents the ste-writing skill data assets and the sync discipline
+  - id: c-suite-passes-05
+    statement: the full test suite passes and agentos all exits 0
+  - id: c-release-05
+    statement: agent-os 0.5.0 is tagged and released on GitHub
   - id: c-portable-install
     statement: a fresh clone works without the original agent-os checkout path
+    status: obsolete
   - id: c-version-discoverable
     statement: the installed agent-os version is discoverable and pinned
+    status: obsolete
   - id: c-version-dimensions-separated
     statement: release, schema, and adapter protocol versions are named distinctly in SPEC and runtime output
+    status: obsolete
   - id: c-schemas-versioned
     statement: schema files include explicit schema_version fields
+    status: obsolete
   - id: c-spec-ambiguity-fixed
     statement: the v0.1/v0.3 wording in SPEC.md is corrected
+    status: obsolete
   - id: c-first-release-cut
     statement: the first GitHub release is tagged and documented
+    status: obsolete
   - id: c-suite-passes
     statement: the full test suite passes and agentos all exits 0
+    status: obsolete
 task_started: "2026-08-05T00:00:00Z"
-next_action: 0.4.0 shipped (tag v0.4.0 + release + tarball asset); upgrade path verified end to end; task complete
-stop_readiness: ready
+next_action: branch feat/ste-glossary-sync holds the skill update, the glossary-sync script, the regular custom check, SPEC section 3.3, and 27 new tests; PR pending; on merge cut tag v0.5.0 and the release
+stop_readiness: blocked
