@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 *.save
 evidence/trace.ndjson
+.DS_Store

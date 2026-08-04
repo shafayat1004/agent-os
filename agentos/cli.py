@@ -10,9 +10,11 @@ from agentos.checks import diff as diff_check
 from agentos.checks import deps as deps_check
 from agentos.checks import skills as skills_check
 from agentos.checks import rules as rules_check
+from agentos.checks import custom as custom_check
 from agentos import gitutil
 from agentos import hooks as hook_commands
 from agentos.initcmd import run_init
+from agentos.version import version_string
 from agentos.yaml_min import YamlError
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -44,6 +46,9 @@ def _run_all(args):
     results.append(deps_check.check_deps(args.dep_policy, args.root))
     results.append(skills_check.check_skills(args.skill_index, args.skills_dir))
     results.append(rules_check.check_rules(args.rules_file))
+    results.append(custom_check.check_custom(
+        os.path.join(args.root, "policies", "custom-checks.yaml"),
+        root=args.root))
     return results
 
 
@@ -51,6 +56,8 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = argparse.ArgumentParser(prog="agentos")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--version", action="version",
+                        version=version_string(_ROOT))
     subparsers = parser.add_subparsers(dest="cmd")
 
     command_parser = subparsers.add_parser("state")
@@ -72,6 +79,22 @@ def main(argv=None):
     command_parser.add_argument("rules_file", nargs="?", default="AGENTS.md")
     command_parser = subparsers.add_parser("init")
     command_parser.add_argument("dest", nargs="?", default=".")
+    command_parser.add_argument("--shared", default=None,
+                                help="use a shared agent-os checkout at PATH "
+                                     "instead of vendoring the runtime into "
+                                     ".agent-os/")
+    command_parser = subparsers.add_parser("upgrade",
+                                           help="refresh the vendored runtime "
+                                                "from a release tarball")
+    command_parser.add_argument("dest", nargs="?", default=".",
+                                help="target directory (default: current dir)")
+    command_parser.add_argument("--to", default=None,
+                                help="pin to a specific version tag")
+    command_parser.add_argument("--check", action="store_true",
+                                help="compare local VERSION to latest release; "
+                                     "report only, do not modify")
+    command_parser = subparsers.add_parser("doctor",
+                                           help="audit enforcement wiring")
     command_parser = subparsers.add_parser("hook-pre-tool")
     command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
     command_parser = subparsers.add_parser("hook-stop")
@@ -130,8 +153,8 @@ def main(argv=None):
 
     try:
         args = parser.parse_args(argv)
-    except SystemExit:
-        return 2
+    except SystemExit as exit_signal:
+        return exit_signal.code if isinstance(exit_signal.code, int) else 2
     if args.cmd is None:
         parser.print_help()
         return 2
@@ -168,20 +191,38 @@ def main(argv=None):
                                             os.getcwd())
     if args.cmd == "init":
         try:
-            summary = run_init(args.dest, _ROOT,
+            shared = args.shared is not None
+            summary = run_init(args.dest, _ROOT, shared=shared,
                                report=lambda action, path: print("%s: %s" % (action, path)))
         except OSError as error:
             print("config error: %s" % error, file=sys.stderr)
             return 2
+        if summary["vendored"]:
+            print("\nVendored runtime into .agent-os/ (portable).")
+        else:
+            print("\nWired adapters to shared checkout at %s." % args.shared)
         if summary["settings_written"]:
-            print("\nWrote .claude/settings.json with the PreToolUse,"
+            print("Wrote .claude/settings.json with the PreToolUse,"
                   " PostToolUse, PreCompact, and Stop hooks.")
         else:
             print("\n.claude/settings.json exists; merge these hooks into it:\n")
             print(summary["settings_snippet"])
-        print("Also active: the git pre-commit hook and the opencode plugin"
-              " (.opencode/plugins/agentos.js).")
+        print("Also active: the git pre-commit hook (.githooks/pre-commit)"
+              " and the opencode plugin (.opencode/plugins/agentos.js).")
         return 0
+    if args.cmd == "upgrade":
+        from agentos.upgrade import run_upgrade
+        result = run_upgrade(args.dest, to_version=args.to,
+                             check_only=args.check,
+                             report=lambda action, path: print("%s: %s" % (action, path)))
+        print(result["message"])
+        if result["action"] == "error":
+            return 2
+        return 0
+    if args.cmd == "doctor":
+        from agentos.doctor import run_doctor
+        return run_doctor(os.getcwd(),
+                          report=lambda line: print(line))
     try:
         if args.cmd == "state":
             results = [state_check.check_state(args.state_file)]

@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "type": "object",
   "required": ["task_id", "goal", "risk_class", "acceptance_criteria",
                "verification_status", "next_action"],

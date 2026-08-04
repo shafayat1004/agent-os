@@ -12,19 +12,28 @@ cover the harnesses that need one (Claude Code, Gemini CLI, Copilot).
 Enforcement adapters cover Claude Code (hooks), opencode (plugin), and any
 git flow (pre-commit).
 
-It does these things, all non-destructive (an existing file is never
-overwritten):
-  1. copy the skeleton templates (via bootstrap)
-  2. write pointer files (CLAUDE.md, GEMINI.md, copilot-instructions.md)
+Two deployment models exist. The default is vendored: the runtime
+(`bin/`, `agentos/`, `schemas/`, `VERSION`) is copied into the target
+under `.agent-os/` so a fresh clone works without an external checkout.
+With `--shared PATH`, the generated adapters point at a shared agent-os
+checkout by absolute path; that model is not portable.
+
+It does these things, all non-destructive for user-owned files (an
+existing AGENTS.md, policy, or settings.json is never overwritten):
+  1. vendor the runtime into `.agent-os/` (vendored model only)
+  2. copy the skeleton templates (via bootstrap)
+  3. write pointer files (CLAUDE.md, GEMINI.md, copilot-instructions.md)
      at AGENTS.md
-  3. install a git pre-commit hook that runs the validator
-  4. write Claude Code hook wrappers plus .claude/settings.json when that
+  4. install a git pre-commit hook that runs the validator
+  5. write Claude Code hook wrappers plus .claude/settings.json when that
      file does not exist (when it does, print a snippet to merge)
-  5. write the opencode plugin under .opencode/plugins/
+  6. write the opencode plugin under .opencode/plugins/
+  7. create hook extension directories under `.agent-os/hooks/`
 """
 import json
 import os
 import shlex
+import shutil
 import stat
 
 from agentos.bootstrap import bootstrap
@@ -39,8 +48,10 @@ _OPENCODE_PLUGIN = """// agent-os opencode plugin (installed by `agentos init`).
 // Enforcement adapter: blocks edits to never paths, refuses done claims
 // while STATE.yaml or evidence/ledger.ndjson is invalid, and appends a
 // trace line after each tool call.
-// Resolution: a vendored bin/agentos in this repo wins. Otherwise the
-// shared checkout recorded below is used. null means this repo is vendored.
+// Resolution: a vendored .agent-os/bin/agentos wins. A self-hosted
+// bin/agentos (the agent-os repo itself) is the fallback. Otherwise the
+// shared checkout recorded below is used. null means this install is
+// vendored and has no shared fallback.
 import { existsSync, readFileSync } from "node:fs"
 
 const SHARED = %s
@@ -66,8 +77,11 @@ const isClaimingDone = (stateFile) => {
 
 export const AgentOS = async ({ $, client, directory, worktree }) => {
   const root = worktree || directory
-  const vendored = root + "/bin/agentos"
-  const agentos = existsSync(vendored) ? vendored : SHARED
+  const vendored = root + "/.agent-os/bin/agentos"
+  const selfHosted = root + "/bin/agentos"
+  const agentos = existsSync(vendored) ? vendored
+                 : existsSync(selfHosted) ? selfHosted
+                 : SHARED
   if (!agentos) return {}  // no validator reachable: stay out of the way
   const run = async (args) => {
     const result = await $`${agentos} ${args}`.nothrow().quiet().cwd(root)
@@ -140,8 +154,8 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
 """
 
 
-def _opencode_plugin(agentos_bin):
-    return _OPENCODE_PLUGIN % json.dumps(agentos_bin)
+def _opencode_plugin(shared_path):
+    return _OPENCODE_PLUGIN % json.dumps(shared_path)
 
 
 def _pre_commit(agentos_bin):
@@ -158,8 +172,18 @@ def _pre_tool(agentos_bin):
         "#!/bin/sh\n"
         "# agent-os PreToolUse wrapper (installed by `agentos init`).\n"
         "# Blocks (exit 2) when the edit target matches a never rule.\n"
+        "# After the built-in check, runs scripts in .agent-os/hooks/pre-tool.d/.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        'exec "%s" hook-pre-tool\n' % agentos_bin)
+        '"%s" hook-pre-tool\n'
+        '_result=$?\n'
+        'if [ $_result -ne 0 ]; then exit $_result; fi\n'
+        'for _script in .agent-os/hooks/pre-tool.d/*; do\n'
+        '  [ -x "$_script" ] || continue\n'
+        '  "$_script"\n'
+        '  _result=$?\n'
+        '  if [ $_result -ne 0 ]; then exit $_result; fi\n'
+        'done\n'
+        'exit 0\n' % agentos_bin)
 
 
 def _stop_check(agentos_bin):
@@ -168,8 +192,18 @@ def _stop_check(agentos_bin):
         "# agent-os Stop wrapper (installed by `agentos init`).\n"
         "# Refuses the done claim (exit 2) when STATE or ledger is invalid.\n"
         "# Extra arguments pass through, for example --run-tests.\n"
+        "# After the built-in check, runs scripts in .agent-os/hooks/stop.d/.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        'exec "%s" hook-stop "$@"\n' % agentos_bin)
+        '"%s" hook-stop "$@"\n'
+        '_result=$?\n'
+        'if [ $_result -ne 0 ]; then exit $_result; fi\n'
+        'for _script in .agent-os/hooks/stop.d/*; do\n'
+        '  [ -x "$_script" ] || continue\n'
+        '  "$_script"\n'
+        '  _result=$?\n'
+        '  if [ $_result -ne 0 ]; then exit $_result; fi\n'
+        'done\n'
+        'exit 0\n' % agentos_bin)
 
 
 def _post_tool(agentos_bin):
@@ -177,8 +211,14 @@ def _post_tool(agentos_bin):
         "#!/bin/sh\n"
         "# agent-os PostToolUse wrapper (installed by `agentos init`).\n"
         "# Appends the tool call to the trace log. Never blocks.\n"
+        "# After the built-in check, runs scripts in .agent-os/hooks/post-tool.d/.\n"
         'cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0\n'
-        'exec "%s" hook-post-tool\n' % agentos_bin)
+        '"%s" hook-post-tool\n'
+        'for _script in .agent-os/hooks/post-tool.d/*; do\n'
+        '  [ -x "$_script" ] || continue\n'
+        '  "$_script"\n'
+        'done\n'
+        'exit 0\n' % agentos_bin)
 
 
 def _pre_compact(agentos_bin):
@@ -251,6 +291,45 @@ def _write_if_absent(path, content, report, executable=False):
     return True
 
 
+def _vendor_runtime(agentos_root, dest, report):
+    """Copy bin/, agentos/, schemas/, VERSION into <dest>/.agent-os/.
+
+    Runtime files are agent-os-owned, not user data: they are refreshed
+    on every init or upgrade. Extension directories under .agent-os/hooks/
+    are user-owned and never touched here.
+    """
+    vendor_dir = os.path.join(dest, ".agent-os")
+    os.makedirs(vendor_dir, exist_ok=True)
+    ignore = shutil.ignore_patterns("__pycache__", "*.pyc")
+    for name in ("bin", "agentos", "schemas", "VERSION"):
+        src = os.path.join(agentos_root, name)
+        if not os.path.exists(src):
+            continue
+        dst = os.path.join(vendor_dir, name)
+        if os.path.isdir(src):
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst, ignore=ignore)
+        else:
+            shutil.copy2(src, dst)
+        report("vendored", dst)
+    # Write a .gitignore inside .agent-os so __pycache__ never commits.
+    gitignore_path = os.path.join(vendor_dir, ".gitignore")
+    with open(gitignore_path, "w") as handle:
+        handle.write("__pycache__/\n*.pyc\n")
+    report("created", gitignore_path)
+    # Create extension directories with .gitkeep so they survive a clone.
+    for ext_name in ("pre-tool.d", "post-tool.d", "stop.d"):
+        ext_path = os.path.join(vendor_dir, "hooks", ext_name)
+        os.makedirs(ext_path, exist_ok=True)
+        gitkeep = os.path.join(ext_path, ".gitkeep")
+        if not os.path.exists(gitkeep):
+            with open(gitkeep, "w") as handle:
+                pass
+            report("created", gitkeep)
+    return vendor_dir
+
+
 def _settings_snippet():
     # $CLAUDE_PROJECT_DIR keeps the settings file portable, so a repo can
     # commit it and every clone resolves the wrappers to its own checkout.
@@ -279,12 +358,23 @@ def _settings_snippet():
     }, indent=2)
 
 
-def run_init(dest, agentos_root, report=None):
+def run_init(dest, agentos_root, shared=False, report=None):
     report = report or (lambda action, path: None)
     dest = os.path.abspath(dest)
     if os.path.exists(dest) and not os.path.isdir(dest):
         raise OSError("destination is not a directory: %s" % dest)
-    agentos_bin = os.path.join(os.path.abspath(agentos_root), "bin", "agentos")
+
+    if shared:
+        # Shared model: adapters point at the agent-os checkout by abs path.
+        agentos_bin = os.path.join(os.path.abspath(agentos_root), "bin", "agentos")
+        shared_path = agentos_bin
+        vendored = False
+    else:
+        # Vendored model: copy runtime into <dest>/.agent-os/, use relative paths.
+        _vendor_runtime(agentos_root, dest, report)
+        agentos_bin = ".agent-os/bin/agentos"
+        shared_path = None
+        vendored = True
 
     bootstrap(os.path.join(agentos_root, "templates"), dest, report)
     for pointer_name in _POINTERS:
@@ -298,20 +388,35 @@ def run_init(dest, agentos_root, report=None):
     _write_if_absent(os.path.join(dest, ".claude", "hooks", "agentos-pre-compact"),
                      _pre_compact(agentos_bin), report, executable=True)
     _write_if_absent(os.path.join(dest, ".opencode", "plugins", "agentos.js"),
-                     _opencode_plugin(agentos_bin), report)
+                     _opencode_plugin(shared_path), report)
     _write_if_absent(os.path.join(dest, "policies", "verification.yaml"),
                      _verification_config(dest, agentos_bin), report)
     settings_written = _write_if_absent(
         os.path.join(dest, ".claude", "settings.json"),
         _settings_snippet() + "\n", report)
 
+    # Git hooks: prefer .githooks/ (committed, portable) over .git/hooks/.
+    githooks_dir = os.path.join(dest, ".githooks")
+    os.makedirs(githooks_dir, exist_ok=True)
+    _write_if_absent(os.path.join(githooks_dir, "pre-commit"),
+                     _pre_commit(agentos_bin), report, executable=True)
+    # Also write to .git/hooks/ for repos that do not set core.hooksPath.
     git_hooks = os.path.join(dest, ".git", "hooks")
     if os.path.isdir(git_hooks):
         _write_if_absent(os.path.join(git_hooks, "pre-commit"),
                          _pre_commit(agentos_bin), report, executable=True)
+        # Set core.hooksPath to .githooks so committed hooks take priority.
+        try:
+            import subprocess as _subprocess
+            _subprocess.run(["git", "config", "core.hooksPath", ".githooks"],
+                            cwd=dest, capture_output=True, timeout=5)
+            report("set", "core.hooksPath = .githooks")
+        except (OSError, _subprocess.TimeoutExpired):
+            report("skip", "could not set core.hooksPath")
     else:
-        report("no .git, skipped pre-commit", git_hooks)
+        report("no .git, skipped .git/hooks/pre-commit", git_hooks)
 
     return {"dest": dest, "agentos_bin": agentos_bin,
+            "shared_path": shared_path, "vendored": vendored,
             "settings_snippet": _settings_snippet(),
             "settings_written": settings_written}

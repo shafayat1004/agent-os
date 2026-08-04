@@ -16,6 +16,12 @@ jobs:
   validate:
     name: validate (python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # A push only fires on main; a pull_request always targets main from a
+    # feature branch. So push == main (strict), pull_request == feature
+    # branch (mid-task exemption allowed). The test suite and the
+    # self-validation step below both read this.
+    env:
+      AGENTOS_REF_IS_MAIN: ${{ github.event_name == 'push' && '1' || '0' }}
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +38,33 @@ jobs:
         run: python3 -m unittest discover -s tests -v
 
       - name: Run agent-os self-validation
-        run: ./bin/agentos all
+        # On main the gate must be fully green. On a PR (feature branch) a
+        # mid-task state is allowed: agentos all may exit 1 when
+        # stop_readiness is blocked and only the ledger check fails
+        # (uncovered criteria). Any other failing check is a real break.
+        run: |
+          set +e
+          ./bin/agentos all > /tmp/agentos-output.txt 2>&1
+          exit_code=$?
+          if [ $exit_code -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$AGENTOS_REF_IS_MAIN" = "1" ]; then
+            echo "On main: agentos all must pass fully (no mid-task exemption)."
+            cat /tmp/agentos-output.txt
+            exit $exit_code
+          fi
+          if grep -q "stop_readiness: blocked" STATE.yaml; then
+            # Feature branch, mid-task: only the ledger check may fail
+            if grep -q "FAIL.*ledger" /tmp/agentos-output.txt && \
+               ! grep -E "FAIL.*state|FAIL.*diff|FAIL.*deps|FAIL.*skills|FAIL.*rules|FAIL.*custom" /tmp/agentos-output.txt | grep -v "ledger"; then
+              echo "Mid-task (feature branch): ledger fails on uncovered criteria (expected)"
+              cat /tmp/agentos-output.txt
+              exit 0
+            fi
+          fi
+          cat /tmp/agentos-output.txt
+          exit $exit_code
 
   adapter-syntax:
     name: adapter syntax (node)

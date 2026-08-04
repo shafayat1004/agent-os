@@ -1,50 +1,58 @@
-task_id: issue-12-ledger-semantics
-goal: Strengthen evidence-ledger semantics and criterion-to-proof linkage (issue #12), additive and versioned so legacy v0 entries stay valid
+task_id: issues-13-15-versioned-portable
+goal: Make agent-os installations portable and version-pinned (#13) and separate the spec/schema/adapter/implementation version dimensions (#15); establish the GitHub release discipline so each shipped release is tagged and documented
 risk_class: reversible
-scope_in: [agentos/checks/ledger.py, agentos/checks/state.py, agentos/cli.py, tests/test_ledger.py, tests/test_state.py, tests/fixtures/ledger_ok.ndjson, tests/fixtures/ledger_bad.ndjson, tests/fixtures/state_ok.yaml, STATE.yaml, evidence/ledger.ndjson, docs/]
-scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas/, .opencode/plugins/agentos.js]
+scope_in: [agentos/cli.py, agentos/initcmd.py, agentos/bootstrap.py, agentos/result.py, tests/test_init.py, tests/test_cli.py, tests/test_self_governance.py, VERSION, SPEC.md, ROADMAP.md, schemas/, templates/, STATE.yaml, evidence/ledger.ndjson, docs/]
+scope_out: [WHITEPAPER.md, .opencode/plugins/agentos.js]
 acceptance_criteria:
-  - empty or malformed ledger entries are rejected (v1 entries)
-  - every required acceptance criterion has a confirmed ledger proof (when STATE declares criteria)
-  - file references in v1 entries resolve or warn; hash mismatch on a file ref warns
-  - stale evidence (ts before task_started) is detected when task_started is set
-  - confirmed v1 entries require a verifier; test/tool v1 entries require a non-empty hash
-  - legacy v0 entries stay valid (no retroactive break of the repo 73-line ledger)
-  - the repo migrates its own current task to v1 so the self-governance gate exercises the new bar
-  - full suite passes and agentos all exits 0
+  - a fresh clone works without the original agent-os checkout path (#13)
+  - the installed agent-os version is discoverable and pinned (#13)
+  - upgrade and rollback procedures exist and are documented (#13)
+  - CI can install or use the same version deterministically (#13)
+  - each version dimension (release, schema, adapter protocol) has a clear name and source of truth (#15)
+  - runtime output reports relevant versions (#15)
+  - schema files include explicit schema_version fields (#15)
+  - the v0.1/v0.3 wording ambiguity in SPEC.md is corrected (#15)
+  - the first GitHub release is cut and documented; future merges that ship update the release section
 confirmed_facts:
-  - fact: the evidence schema today requires claim, status, evidence_ref, source_type, ts; verifier and hash are optional; additionalProperties is false; there is no non-empty, timestamp-format, hash, or criterion linkage constraint
-    evidence_ref: schemas/evidence.schema.json
-  - fact: the ledger check (agentos/checks/ledger.py) only runs jsonschema_min per line; there is no semantic layer and no cross-reference to STATE
-    evidence_ref: agentos/checks/ledger.py
-  - fact: acceptance_criteria in task-state.schema.json is a bare [string] list with no id and no proof reference; confirmed_facts is [{fact, evidence_ref}] but is not linked to acceptance_criteria
-    evidence_ref: schemas/task-state.schema.json
-  - fact: jsonschema_min supports type, enum, pattern, required, additionalProperties, minItems; it has no minLength, format, or custom keywords; AGENTS.md forbids weakening it and it must raise on unsupported input
-    evidence_ref: agentos/jsonschema_min.py
-  - fact: the repo's own 73-line ledger has v0-shape entries (no version field; confirmed entries with no hash; verifier empty on some); any retroactive strictness would break the self-governance gate and AGENTS.md forbids weakening a test to make a failing repo pass
-    evidence_ref: evidence/ledger.ndjson
-  - fact: the done gate (hooks.py run_done) already refuses the claim (exit 2) on any error-level ledger finding, so strengthening the ledger check propagates into the done gate with no hooks.py change
-    evidence_ref: agentos/hooks.py run_done lines 219-226
+  - fact: SPEC.md header says "v0.3" but the body mixes "v0.1 spec surface" (the six artifacts) with "v0.3" (the CLI), the exact ambiguity #15 names
+    evidence_ref: SPEC.md lines 1, 30, 71, 355, 432
+  - fact: the CLI has no --version flag and no VERSION file; there are zero git tags and zero GitHub releases
+    evidence_ref: agentos/cli.py argparse setup; `git tag -l` empty; `gh release list` empty
+  - fact: schemas carry no file-level schema_version; evidence.schema.json has an entry-version field (enum [1], added in #12) but no schema-file version; task-state.schema.json and skill.schema.json have no version at all
+    evidence_ref: schemas/evidence.schema.json, schemas/task-state.schema.json, schemas/skill.schema.json
+  - fact: agentos init embeds the absolute agentos_bin path into 7 generated files (pre-tool, stop-check, post-tool, pre-compact, pre-commit, opencode plugin, verification.yaml); if the agent-os checkout moves or is deleted every installed repo's enforcement goes silent
+    evidence_ref: agentos/initcmd.py lines 143-223, 287, 293-311
+  - fact: the opencode plugin already prefers a vendored bin/agentos over the SHARED path (vendored wins, SHARED falls back), so the vendor model is half-built; only the init step does not vendor by default
+    evidence_ref: agentos/initcmd.py _OPENCODE_PLUGIN lines 69-71
+  - fact: the agent-os repo self-hosts its own bin/agentos and is the reference for the vendored model; templates/STATE.yaml ships stop_readiness blocked and init is non-destructive (_write_if_absent)
+    evidence_ref: tests/test_self_governance.py; agentos/initcmd.py _write_if_absent lines 240-251
 assumptions: []
 decisions:
-  - decision: criterion linkage uses stable ids in STATE criteria, not exact acceptance_criteria text match
-    rationale: ids survive rewording; text match breaks on whitespace and wording drift (user-approved DECISION 2)
-  - decision: drift (file-resolve, hash-mismatch, stale) severity is tiered by liveness, not flat
-    rationale: a live proof of an active criterion that has drifted blocks done (error); a free-standing fact drifts to a warning; a superseded or obsolete-criterion entry is silent history. Warnings clear via append-only supersession (a fresh v1 entry with supersedes) or criterion retirement (status: obsolete), so they never become permanent false flags (user-approved DECISION 4 refined)
-  - decision: v0 entries are transitional, not permanent; migration is append-only supersession by line number or id
-    rationale: the target is all live entries v1; the repo's 73 legacy lines stay valid as inert v0 and are superseded only as their areas are touched (user-approved choice a)
+  - decision: three version dimensions, not five: release version (one semver, the git tag, source of truth is the VERSION file), schema_version (per-schema-file integer, additive, independent), adapter protocol version (one integer in the opencode plugin)
+    rationale: the spec document version and the template bundle version collapse into the release version; the spec surface is just "the spec" and evolves by additive change tracked in ROADMAP, not by a separate version label. This kills the v0.1-vs-v0.3 ambiguity #15 names without inventing two more version numbers to keep in sync (pending user sign-off)
+  - decision: vendor-by-default for agentos init; the SHARED absolute-path model becomes opt-in (--shared PATH) for teams that want one checkout across many repos
+    rationale: the vendored model is already half-built (the opencode plugin prefers vendored over SHARED); vendoring fits the zero-dep "drop into any repo without an install step" guarantee (memory 1967); git submodules add complexity and pip violates zero-dep; a single-file bundle is elegant but a bigger build step for later (pending user sign-off)
+  - decision: schema files get a top-level "schema_version" integer; the evidence entry "version" field (added in #12) stays unchanged to avoid a breaking rename hours after it shipped
+    rationale: additive and non-breaking; the two version concepts (file vs entry) are distinct and named distinctly (pending user sign-off)
 failed_hypotheses: []
-open_questions: []
+open_questions:
+  - should the first release tag the current main HEAD as 0.3.1 (the release that includes #12 ledger semantics), or 0.4.0 (a minor bump marking the portability+versioning change itself)? semver says 0.3.1 for a fix, 0.4.0 for a feature; #13/#15 are features so 0.4.0 is correct, but the repo has never released so 0.3.1 is defensible as "first tagged release of the 0.3 line"
 changed_files:
+  - VERSION
+  - agentos/version.py
+  - agentos/upgrade.py
+  - agentos/doctor.py
+  - agentos/checks/custom.py
+  - agentos/cli.py
+  - agentos/initcmd.py
   - schemas/evidence.schema.json
   - schemas/task-state.schema.json
+  - schemas/skill.schema.json
   - SPEC.md
-  - agentos/checks/ledger.py
-  - agentos/cli.py
-  - tests/test_ledger_semantics.py
-  - tests/fixtures/state_criteria.yaml
-  - tests/fixtures/ledger_v1_ok.ndjson
-  - tests/fixtures/ledger_v1_bad.ndjson
+  - tests/test_init.py
+  - tests/test_self_governance.py
+  - tests/test_v04_features.py
+  - templates/policies/custom-checks.yaml
   - STATE.yaml
   - evidence/ledger.ndjson
 verification_status:
@@ -54,12 +62,20 @@ verification_status:
   policy: pass
   security: n/a
 criteria:
-  - id: c-reject-empty
-    statement: v1 semantic layer rejects empty and malformed ledger entries
-  - id: c-legacy-valid
-    statement: legacy v0 ledger entries stay valid under the new check
+  - id: c-portable-install
+    statement: a fresh clone works without the original agent-os checkout path
+  - id: c-version-discoverable
+    statement: the installed agent-os version is discoverable and pinned
+  - id: c-version-dimensions-separated
+    statement: release, schema, and adapter protocol versions are named distinctly in SPEC and runtime output
+  - id: c-schemas-versioned
+    statement: schema files include explicit schema_version fields
+  - id: c-spec-ambiguity-fixed
+    statement: the v0.1/v0.3 wording in SPEC.md is corrected
+  - id: c-first-release-cut
+    statement: the first GitHub release is tagged and documented
   - id: c-suite-passes
     statement: the full test suite passes and agentos all exits 0
 task_started: "2026-08-05T00:00:00Z"
-next_action: await user decision to commit and push the branch (done gate verified exit 0 at stop_readiness ready); schemas/SPEC were human-approved
-stop_readiness: ready
+next_action: commit and push the branch; create PR; after merge cut release 0.4.0 (tag + release notes + tarball); then add c-first-release-cut proof
+stop_readiness: blocked
