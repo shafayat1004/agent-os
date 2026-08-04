@@ -68,7 +68,7 @@ class TestInit(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             summary = run_init(temp_dir, _ROOT)
             plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
-                                        "agentos.js")
+                                       "agentos.js")
             self.assertTrue(os.path.exists(plugin_path))
             with open(plugin_path) as plugin_file:
                 body = plugin_file.read()
@@ -291,7 +291,9 @@ class TestInit(unittest.TestCase):
             completed = subprocess.run([vendored_bin, "--version"],
                                        cwd=temp_dir, capture_output=True, text=True)
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("0.4.0", completed.stdout)
+            with open(os.path.join(_ROOT, "VERSION")) as version_file:
+                expected = version_file.read().strip()
+            self.assertIn(expected, completed.stdout)
 
     def test_cli_init_exit_zero_and_bootstraps(self):
         with tempfile.TemporaryDirectory() as temp_dir:
