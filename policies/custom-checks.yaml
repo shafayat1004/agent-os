@@ -1,0 +1,16 @@
+# Custom checks for the agent-os repo itself (self-governance).
+# These run as part of `agentos all` after the six built-in checks.
+# A check with on_fail: warn reports but does not block `agentos done`.
+
+checks:
+  # ste-writing glossary sync: a regular check that the vendored domain
+  # glossary is structurally valid and has not drifted from its last
+  # deliberate sync. The check is stdlib-only and makes no network call.
+  # Drift is advisory (warn), not a hard gate: a stale glossary does not
+  # break the validator. To see whether an upstream update is necessary,
+  # run: python3 .claude/skills/ste-writing/scripts/glossary-sync.py --check-upstream
+  - name: ste-glossary-sync
+    command: "python3 .claude/skills/ste-writing/scripts/glossary-sync.py --check"
+    expect: pass
+    grade: B+
+    on_fail: warn

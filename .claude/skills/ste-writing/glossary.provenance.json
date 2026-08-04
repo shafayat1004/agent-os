@@ -1,0 +1,13 @@
+{
+  "content_hash": "sha256:320a9dda0b0fbb873e4524ad7deedbda31539911d9d67435730c50f12757dcd0",
+  "hash_excludes": [
+    "generated",
+    "note"
+  ],
+  "skill_version": "1.1.0",
+  "synced_at": "2026-08-04",
+  "upstream_raw_url": "https://raw.githubusercontent.com/shafayat1004/agent-skills/main/skills/ste-writing/glossary.json",
+  "upstream_ref": "main",
+  "upstream_repo": "https://github.com/shafayat1004/agent-skills",
+  "upstream_sha_at_sync": "153ade316b554f4b26d5936c843ad40f0b9cae73"
+}

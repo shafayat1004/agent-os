@@ -17,6 +17,7 @@ may_edit:
   - "*.md"
   - .gitignore
   - STATE.yaml
+  - VERSION
   - AGENTS.md
   - CLAUDE.md
 # Spec and evidence-of-design docs change only with human sign-off.

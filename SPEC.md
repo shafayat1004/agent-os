@@ -1,4 +1,4 @@
-# SPEC.md - agent-os (release 0.4.0)
+# SPEC.md - agent-os (release 0.5.0)
 
 Status: normative. This file states the rules the validator checks.
 
@@ -209,6 +209,12 @@ fields are present, and that the version string is valid semver.
 v0.1 shipped the manifest and the lint only. It does not ship a promotion or
 benchmark pipeline for skills. See `ROADMAP.md`.
 
+The `ste-writing` skill ships a vendored domain glossary
+(`.claude/skills/ste-writing/glossary.json`) as a data asset. The
+glossary holds doc-verified controlled terminology for 16 software,
+SRE, and DevOps domains. Its sync discipline is a custom check, documented
+in section 3.3.
+
 ### 2.6 `policies/dependency-policy.yaml`
 
 The dependency policy names banned or required packages, checked against a
@@ -328,6 +334,38 @@ checks:
 The file is optional; absent means no custom checks. `agentos upgrade`
 never overwrites it.
 
+### 3.3 Skill data provenance: the ste-writing glossary
+
+The `ste-writing` skill is vendored from the upstream `agent-skills`
+repo. Its domain glossary is data, not code, so a separate discipline
+governs when an update is necessary.
+
+Two checks live in `.claude/skills/ste-writing/scripts/glossary-sync.py`.
+The script imports the standard library only, so it keeps the
+zero-dependency guarantee.
+
+The regular check (`glossary-sync.py --check`) runs in `agentos all`
+as a custom check with `on_fail: warn`. It makes no network call. It
+validates the glossary structure and compares the local content hash
+against a pinned provenance file
+(`.claude/skills/ste-writing/glossary.provenance.json`). The hash
+covers the normative term content and excludes volatile metadata, such
+as the `generated` date. A mismatch means the local glossary drifted
+from its last deliberate sync. The check warns, it does not block
+`agentos done`, because a stale glossary does not break the validator.
+
+The necessity check (`glossary-sync.py --check-upstream`) is on demand
+or in a CI cron. It fetches the upstream glossary, compares the
+normative term content, and reports whether an update is absolutely
+necessary. An update is necessary only when term content was added,
+removed, or changed. A difference confined to volatile metadata is not
+necessary. The report lists the domains and terms that differ.
+
+`glossary-sync.py --pin` rewrites the provenance file after a
+deliberate sync. It records the upstream commit SHA, the sync date, the
+content hash, and the skill version. Run it after pulling a glossary
+update from upstream, so the regular check stays green.
+
 ## 4. Validator (`agentos`)
 
 The validator is Python 3, standard library only. It has no third-party
@@ -421,7 +459,7 @@ Exit codes:
 - `1` means at least one check found a violation.
 - `2` means a config or usage error, such as a missing file or a bad flag.
 
-## 5. Repository layout (0.4.0, only what is built)
+## 5. Repository layout (0.5.0, only what is built)
 
 ```
 agent-os/
@@ -503,9 +541,9 @@ adapters are committed: `.claude/settings.json` for Claude Code and
 `agentos all` on the repo itself and on a fresh init destination, and
 both must exit 0.
 
-## 6. Non-goals for 0.4.0
+## 6. Non-goals for 0.5.0
 
-agent-os 0.4.0 does not build:
+agent-os 0.5.0 does not build:
 
 - An agent runtime, orchestrator, or model adapter.
 - A skill promotion or deprecation pipeline. The manifest format and
@@ -528,7 +566,7 @@ release, and the schemas.
 | Schema version | `schema_version` integer at the top of each schema file | additive, per file | a schema field is added, removed, or its type changes |
 | Adapter protocol | `ADAPTER_PROTOCOL` integer in `agentos/version.py` | one integer | the hook stdin/stdout contract or exit-code mapping changes |
 
-`agentos --version` reports all three: `agentos 0.4.0 (schema
+`agentos --version` reports all three: `agentos 0.5.0 (schema
 evidence=1, skill=1, task-state=1; adapter protocol 1)`.
 
 ### Compatibility rules
