@@ -35,7 +35,9 @@ def _print(results, as_json):
 def _run_all(args):
     results = []
     results.append(state_check.check_state(args.state_file))
-    results.append(ledger_check.check_ledger(args.ledger_file))
+    results.append(ledger_check.check_ledger(args.ledger_file,
+                                             state_file=args.state_file,
+                                             root=args.root))
     results.append(diff_check.check_diff(args.path_policy,
                                          gitutil.changed_files(staged=args.staged,
                                                                rev_range=args.range)))

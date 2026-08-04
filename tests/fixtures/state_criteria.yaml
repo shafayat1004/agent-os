@@ -1,0 +1,18 @@
+task_id: criteria-fixture
+goal: fixture for ledger semantic-layer tests
+risk_class: reversible
+acceptance_criteria: []
+verification_status:
+  format: n/a
+  compile: n/a
+  tests: pass
+  policy: pass
+  security: n/a
+next_action: x
+criteria:
+  - id: build-green
+    statement: build is green
+  - id: tests-green
+    statement: tests pass
+    status: obsolete
+task_started: "2026-08-01T00:00:00Z"

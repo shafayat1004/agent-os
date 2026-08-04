@@ -9,6 +9,10 @@
     "source_type": {"enum": ["tool", "file", "test", "policy", "human"]},
     "verifier": {"type": "string"},
     "hash": {"type": "string"},
-    "ts": {"type": "string"}
+    "ts": {"type": "string"},
+    "version": {"type": "integer", "enum": [1]},
+    "id": {"type": "string"},
+    "criterion": {"type": "string"},
+    "supersedes": {"type": "string"}
   }
 }

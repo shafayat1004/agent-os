@@ -1,50 +1,50 @@
-task_id: pr33-review-fixes
-goal: Fix the two confirmed PR #33 review findings in run_done (ignored verify exit code, ignored config timeout) plus safe nits
+task_id: issue-12-ledger-semantics
+goal: Strengthen evidence-ledger semantics and criterion-to-proof linkage (issue #12), additive and versioned so legacy v0 entries stay valid
 risk_class: reversible
-scope_in: [agentos/hooks.py, agentos/verify.py, agentos/initcmd.py, tests/test_hook_commands.py, tests/test_verify.py, policies/verification.yaml, README.md, STATE.yaml, evidence/ledger.ndjson]
+scope_in: [agentos/checks/ledger.py, agentos/checks/state.py, agentos/cli.py, tests/test_ledger.py, tests/test_state.py, tests/fixtures/ledger_ok.ndjson, tests/fixtures/ledger_bad.ndjson, tests/fixtures/state_ok.yaml, STATE.yaml, evidence/ledger.ndjson, docs/]
 scope_out: [SPEC.md, ROADMAP.md, WHITEPAPER.md, schemas/, .opencode/plugins/agentos.js]
 acceptance_criteria:
-  - done refuses the claim (exit 2) when verify exits nonzero, not relying on the STATE writeback
-  - done respects the timeout in policies/verification.yaml on the verify path
-  - a non-string command value in verification.yaml is a config error (exit 2), not a silent n/a
-  - the full-rewrite fallback in verify.py has test coverage
-  - the full test suite passes and agentos all exits 0
-  - agentos done exits 0 on this repo with the fixes in place
+  - empty or malformed ledger entries are rejected (v1 entries)
+  - every required acceptance criterion has a confirmed ledger proof (when STATE declares criteria)
+  - file references in v1 entries resolve or warn; hash mismatch on a file ref warns
+  - stale evidence (ts before task_started) is detected when task_started is set
+  - confirmed v1 entries require a verifier; test/tool v1 entries require a non-empty hash
+  - legacy v0 entries stay valid (no retroactive break of the repo 73-line ledger)
+  - the repo migrates its own current task to v1 so the self-governance gate exercises the new bar
+  - full suite passes and agentos all exits 0
 confirmed_facts:
-  - fact: PR #33 review confirmed run_done ignores the run_verify exit code; a malformed verification.yaml with self-reported pass made done exit 0 while verify alone exited 2
-    evidence_ref: probe repo with malformed policies/verification.yaml; agentos verify exit 2, agentos done exit 0 (2026-07-30)
-  - fact: PR #33 review confirmed run_done forces timeout 600 over the config value; with config timeout 2 and tests sleep 5, verify timed out at 2s (fail) but done passed in 5.08s
-    evidence_ref: probe repo with timeout 2 and tests sleep 5; verify exit 1 in 2.06s, done exit 0 in 5.08s (2026-07-30)
-  - fact: PR #33 review confirmed a non-string command (tests 123 as an integer) is silently treated as n/a by verify
-    evidence_ref: probe repo with tests 123; verify exit 0, STATE tests n/a (2026-07-30)
-  - fact: run_done now refuses the claim (exit 2) on any nonzero verify exit, with a distinct actionable message for a config load error versus a failed verifier; the gate no longer depends on the STATE writeback succeeding
-    evidence_ref: agentos/hooks.py run_done; probes rerun post-fix -> malformed config exit 2, failed verifier with read-only STATE exit 2; tests/test_hook_commands.py test_done_verify_config_error_blocks
-  - fact: run_done passes timeout None so the config timeout applies on the done path, matching the verify CLI
-    evidence_ref: agentos/hooks.py run_done; probe rerun post-fix -> config timeout 2 with sleep 5 refused in 2.055s; tests/test_hook_commands.py test_done_respects_config_timeout
-  - fact: a non-string command value is rejected as a config error (exit 2) with a fix hint, not silently treated as n/a
-    evidence_ref: agentos/verify.py run_verify type check; probe rerun -> verify exit 2 with 'not a string'; tests/test_verify.py test_non_string_command_is_config_error
-  - fact: the full-rewrite fallback in verify.py has test coverage; missing verification fields are added back and all other fields survive
-    evidence_ref: tests/test_verify.py test_full_rewrite_fallback_preserves_fields
-  - fact: all 162 tests pass and agentos all exits 0 with the fixes in place
-    evidence_ref: python3 -m unittest discover -s tests -> Ran 162 tests OK (was 158); ./bin/agentos all exit 0
+  - fact: the evidence schema today requires claim, status, evidence_ref, source_type, ts; verifier and hash are optional; additionalProperties is false; there is no non-empty, timestamp-format, hash, or criterion linkage constraint
+    evidence_ref: schemas/evidence.schema.json
+  - fact: the ledger check (agentos/checks/ledger.py) only runs jsonschema_min per line; there is no semantic layer and no cross-reference to STATE
+    evidence_ref: agentos/checks/ledger.py
+  - fact: acceptance_criteria in task-state.schema.json is a bare [string] list with no id and no proof reference; confirmed_facts is [{fact, evidence_ref}] but is not linked to acceptance_criteria
+    evidence_ref: schemas/task-state.schema.json
+  - fact: jsonschema_min supports type, enum, pattern, required, additionalProperties, minItems; it has no minLength, format, or custom keywords; AGENTS.md forbids weakening it and it must raise on unsupported input
+    evidence_ref: agentos/jsonschema_min.py
+  - fact: the repo's own 73-line ledger has v0-shape entries (no version field; confirmed entries with no hash; verifier empty on some); any retroactive strictness would break the self-governance gate and AGENTS.md forbids weakening a test to make a failing repo pass
+    evidence_ref: evidence/ledger.ndjson
+  - fact: the done gate (hooks.py run_done) already refuses the claim (exit 2) on any error-level ledger finding, so strengthening the ledger check propagates into the done gate with no hooks.py change
+    evidence_ref: agentos/hooks.py run_done lines 219-226
 assumptions: []
 decisions:
-  - decision: any nonzero exit from run_verify refuses the done claim with exit 2 before the verdict gate runs
-    rationale: the verdict gate must not depend on the STATE writeback succeeding; a failed writeback or a malformed config would otherwise pass on stale self-reported status
-  - decision: run_done passes timeout None so the config timeout applies, matching the verify CLI path
-    rationale: the CLI passes None by default and the config wins; done must behave the same or the two paths disagree on the same repo
-  - decision: the self-host opencode plugin keeps --run-tests TEST_COMMAND even though verification.yaml also runs the suite
-    rationale: out of scope for the review fixes; the double run is wasteful but harmless, and changing self-host wiring is a separate decision
+  - decision: criterion linkage uses stable ids in STATE criteria, not exact acceptance_criteria text match
+    rationale: ids survive rewording; text match breaks on whitespace and wording drift (user-approved DECISION 2)
+  - decision: drift (file-resolve, hash-mismatch, stale) severity is tiered by liveness, not flat
+    rationale: a live proof of an active criterion that has drifted blocks done (error); a free-standing fact drifts to a warning; a superseded or obsolete-criterion entry is silent history. Warnings clear via append-only supersession (a fresh v1 entry with supersedes) or criterion retirement (status: obsolete), so they never become permanent false flags (user-approved DECISION 4 refined)
+  - decision: v0 entries are transitional, not permanent; migration is append-only supersession by line number or id
+    rationale: the target is all live entries v1; the repo's 73 legacy lines stay valid as inert v0 and are superseded only as their areas are touched (user-approved choice a)
 failed_hypotheses: []
 open_questions: []
 changed_files:
-  - agentos/hooks.py
-  - agentos/verify.py
-  - agentos/initcmd.py
-  - tests/test_hook_commands.py
-  - tests/test_verify.py
-  - policies/verification.yaml
-  - README.md
+  - schemas/evidence.schema.json
+  - schemas/task-state.schema.json
+  - SPEC.md
+  - agentos/checks/ledger.py
+  - agentos/cli.py
+  - tests/test_ledger_semantics.py
+  - tests/fixtures/state_criteria.yaml
+  - tests/fixtures/ledger_v1_ok.ndjson
+  - tests/fixtures/ledger_v1_bad.ndjson
   - STATE.yaml
   - evidence/ledger.ndjson
 verification_status:
@@ -53,5 +53,13 @@ verification_status:
   tests: pass
   policy: pass
   security: n/a
-next_action: commit the fixes and push to the PR #33 branch (verify/completion-gate), then report the result to the user
+criteria:
+  - id: c-reject-empty
+    statement: v1 semantic layer rejects empty and malformed ledger entries
+  - id: c-legacy-valid
+    statement: legacy v0 ledger entries stay valid under the new check
+  - id: c-suite-passes
+    statement: the full test suite passes and agentos all exits 0
+task_started: "2026-08-05T00:00:00Z"
+next_action: await user decision to commit and push the branch (done gate verified exit 0 at stop_readiness ready); schemas/SPEC were human-approved
 stop_readiness: ready
