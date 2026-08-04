@@ -14,3 +14,24 @@ checks:
     expect: pass
     grade: B+
     on_fail: warn
+  # ste-writing prose lint: runs the linter in CI mode on the normative
+  # Markdown files. The passing score is 95 (out of 100). A file below 95
+  # fails this check and blocks `agentos done`. The em-dash org rule is
+  # already enforced by tests/test_full_suite.py; this check covers the
+  # broader STE compliance score (semicolons, passive voice, aliases,
+  # long sentences, phrasal verbs, filler).
+  - name: ste-lint-spec
+    command: "python3 .claude/skills/ste-writing/scripts/ste-lint.py --ci --threshold 95 SPEC.md"
+    expect: pass
+    grade: A
+    on_fail: error
+  - name: ste-lint-roadmap
+    command: "python3 .claude/skills/ste-writing/scripts/ste-lint.py --ci --threshold 95 ROADMAP.md"
+    expect: pass
+    grade: A
+    on_fail: error
+  - name: ste-lint-readme
+    command: "python3 .claude/skills/ste-writing/scripts/ste-lint.py --ci --threshold 95 README.md"
+    expect: pass
+    grade: A
+    on_fail: error
