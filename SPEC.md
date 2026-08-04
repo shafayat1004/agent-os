@@ -57,7 +57,7 @@ other artifacts.
 
 Narrative belongs in linked docs, not in `AGENTS.md`.
 
-The file has a size budget, checked by line count. The soft cap is about
+The file has a size budget. Line count checks it. The soft cap is about
 150 non-blank lines. The validator warns past the soft cap. The hard cap is
 about 250 non-blank lines. The validator fails past the hard cap. This
 budget stops rule-file bloat, a known failure mode for agent context.
@@ -102,15 +102,15 @@ Set `stop_readiness: ready` to claim done. That is the trigger for the
 verdict gates in section 3: the stop adapters then grade
 `acceptance_criteria` and `verification_status`, and run the configured
 test command. Any other value, or an absent field, means no done claim,
-and the stop adapters check schema validity only. Mid-task stops stay
-free: an agent that pauses to ask a question is not claiming done.
+and the stop adapters check schema validity only. A mid-task stop stays
+free: an agent that pauses to ask a question does not claim done.
 
 An explicit completion command, `agentos done`, complements the stop
 event. It always invokes the verdict gate: it rejects a missing,
 blocked, or malformed `stop_readiness` with an actionable reason, not
 a silent allow. The stop event (`agentos hook-stop`) fires on every
-turn end and gates only on a voluntary `ready`, so an agent that pauses
-to ask a question is not claiming done. `done` is the finalization
+turn end. It gates only on a voluntary `ready`, so an agent that pauses
+to ask a question does not claim done. `done` is the finalization
 command that no agent can bypass by leaving readiness unset. A prose
 claim is not a done claim.
 
@@ -149,11 +149,11 @@ To supersede a claim, append a new entry that references the old claim. Do
 not mutate or delete a past entry.
 
 An entry without `version` is v0 (legacy): the validator checks its shape
-against this schema only. An entry with `version: 1` is v1 and must also
-pass the semantic layer: a non-empty `claim` and `evidence_ref`, an ISO
-8601 UTC `ts`, a non-empty `verifier` when `status` is `confirmed`, and a
-non-empty `hash` when `source_type` is `test` or `tool` and `status` is
-`confirmed`. The `version` enum is `[1]`. Any other integer is a config
+against this schema only. An entry with `version: 1` is v1 and must
+also pass the semantic layer. The layer requires a non-empty `claim`
+and `evidence_ref`, an ISO 8601 UTC `ts`, a non-empty `verifier` when
+`status` is `confirmed`, and a non-empty `hash` when `source_type` is
+`test` or `tool` and `status` is `confirmed`. The `version` enum is `[1]`. Any other integer is a config
 error. The validator never weakens the v0 bar. V1 is extra strictness an
 entry opts into.
 
@@ -169,12 +169,11 @@ not edit or delete the old line.
 
 For a v1 entry with `source_type: file`, the validator resolves
 `evidence_ref` as a path and, when the entry sets `hash`, recomputes the file hash.
-An unresolvable path or a hash mismatch is an error when the entry is a
-live proof of an active criterion (it blocks the done claim), a warning
-when the entry is a free-standing fact, and silent when the entry is
-superseded or its criterion is obsolete. A live proof is one whose
-`criterion` is an active id and whose `id` is not named by any later
-`supersedes`.
+An unresolvable path or a hash mismatch raises an error for a live
+proof of an active criterion (it blocks the done claim). It raises a
+warning for a free-standing fact. It stays silent when the entry
+supersedes another or its criterion retires. A live proof has an
+active `criterion` id and no later `supersedes` names its `id`.
 
 ### 2.4 `policies/path-policy.yaml`
 
@@ -391,13 +390,14 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
 - `agentos init [DEST]` wires a repository for use. By default it vendors the
   runtime (`.agent-os/`) into the target so the install is portable. With
   `--shared PATH`, it writes adapters that point at a shared checkout.
-  It copies the skeleton artifacts, writes pointer files at `AGENTS.md`
-  (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`),
-  installs a git `pre-commit` hook, writes the Claude Code hook wrappers
-  under `.claude/hooks/`, writes the opencode plugin under
-  `.opencode/plugins/`, and writes `.claude/settings.json` when that
-  file does not exist. When it does exist, init prints a snippet to
-  merge. It never overwrites a file that exists.
+  It copies the skeleton artifacts. It writes pointer files at
+  `AGENTS.md` (`CLAUDE.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`). It installs a git `pre-commit`
+  hook, writes the Claude Code hook wrappers under `.claude/hooks/`,
+  writes the opencode plugin under `.opencode/plugins/`, and writes
+  `.claude/settings.json` when that file does not exist. When it does
+  exist, init prints a snippet to merge. It never overwrites a file
+  that exists.
 - `agentos upgrade [--to VERSION] [--check]` refreshes the vendored
   runtime in `.agent-os/` from a release tarball. Without `--to`, it
   fetches the latest release. `--check` compares the local `VERSION`
@@ -441,10 +441,10 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   unavailable (status `n/a`). A timeout or a non-runnable command is a
   fail. The verdict comes from execution, not a self-reported value.
 - `agentos done` is the explicit completion gate. It runs the verdict
-  gate unconditionally: STATE and the ledger must be valid,
-  `stop_readiness` must be `ready` (a missing or blocked value is
-  rejected with an actionable reason), `acceptance_criteria` must be
-  non-empty, every `verification_status` field must be `pass` or `n/a`,
+  gate unconditionally: STATE and the ledger must hold valid data,
+  `stop_readiness` must read `ready` (the gate rejects a missing or
+  blocked value with an actionable reason), `acceptance_criteria` must be
+  non-empty, every `verification_status` field must read `pass` or `n/a`,
   and the command given with `--run-tests CMD`, when passed, must exit 0.
   When a `policies/verification.yaml` is present, `done` runs `verify`
   first, so execution derives the status. `--no-verify` trusts
@@ -552,7 +552,7 @@ agent-os 0.5.0 does not build:
 - A dashboard, telemetry sink, or knowledge graph.
 
 These stay documented and unbuilt. See `ROADMAP.md` for the gate each one
-needs before it gets built.
+needs before anyone builds them.
 
 ## 7. Versioning
 

@@ -1,15 +1,17 @@
 # agent-os
 
-agent-os is a repository-owned, model-independent spec for agentic coding,
-plus a zero-dependency validator that checks it by machine. It exists
-because the evidence in `WHITEPAPER.md` says agent failures are workflow
-failures, not prompt failures: agents claim done without proof, hold
-context they never use, and follow rules that nothing enforces. A repository
-adopts agent-os before the agent reads any code, and gets six checkable
-artifacts, from typed task state to an append-only proof log, plus hooks
-that block a `never` path and refuse an unverified done claim. Only what
-the evidence grades strongly. The rest waits on `ROADMAP.md`,
-with a gate per module.
+agent-os is a repository-owned, model-independent spec for agentic
+coding, plus a zero-dependency validator that checks it by machine. It
+exists because the evidence in `WHITEPAPER.md` says agent failures are
+workflow failures, not prompt failures. Agents claim done without
+proof, hold context they never use, and follow rules that nothing
+enforces.
+
+A repository adopts agent-os before the agent reads any code. It gets
+six checkable artifacts, from typed task state to an append-only proof
+log. It also gets hooks that block a `never` path and refuse an
+unverified done claim. Only what the evidence grades strongly. The
+rest waits on `ROADMAP.md`, with a gate per module.
 
 Supported agents: opencode, Codex, and Cursor read `AGENTS.md` natively.
 Claude Code, Gemini CLI, and Copilot get pointer files. Enforcement ships
@@ -41,8 +43,8 @@ cd your-repo
 ```
 
 That is the whole setup. The git pre-commit hook, the Claude Code
-hooks, and the opencode plugin are active right away: a `never` path
-blocks the edit, an invalid `STATE.yaml` blocks the done claim. Then,
+hooks, and the opencode plugin are active right away. A `never` path
+blocks the edit. An invalid `STATE.yaml` blocks the done claim. Then,
 when you have a minute:
 
 1. Fill in the `Commands` section of `AGENTS.md` (build, test).
@@ -51,7 +53,7 @@ when you have a minute:
 
 ### Set up an existing codebase
 
-The same command, same safety: `init` never overwrites a file that
+The same command, same safety. `init` never overwrites a file that
 exists, and it is safe to run again.
 
 ```bash
@@ -132,8 +134,8 @@ verification gate:
 
 - `STATE.yaml` and `evidence/ledger.ndjson` must be valid against their
   schemas.
-- `stop_readiness` must be `ready`. A missing or `blocked` value is
-  rejected with an actionable reason, not silently allowed.
+- `stop_readiness` must be `ready`. The gate rejects a missing or
+  `blocked` value with an actionable reason, not a silent allow.
 - `acceptance_criteria` must be non-empty.
 - Every `verification_status` field must be `pass` or `n/a`. When a
   `policies/verification.yaml` is present, `done` runs `verify` first. A failed verifier or a config that cannot load refuses the claim, it
@@ -141,18 +143,20 @@ verification gate:
 - The test command, when given with `--run-tests CMD`, must exit 0.
 
 A prose claim is not a done claim. The harness stop event
-(`agentos hook-stop`) is different: it fires on every turn end and gates
-only when the agent declares `stop_readiness: ready`, so an agent that
-pauses to ask a question is not claiming done. `done` is the explicit
-finalization command that no agent can bypass by leaving readiness unset.
+(`agentos hook-stop`) is different. It fires on every turn end and
+gates only when the agent declares `stop_readiness: ready`, so an
+agent that pauses to ask a question does not claim done. `done` is the
+explicit finalization command that no agent can bypass by leaving
+readiness unset.
 
 ### Verify with real commands
 
-`agentos verify` reads `policies/verification.yaml`, runs each configured
-command (`format`, `compile`, `tests`, `policy`, `security`), derives the
-status from the exit code, records the command, the exit code, a
-timestamp, and an output hash in `evidence/ledger.ndjson`, and writes the
-derived status into `STATE.yaml`. `agentos done` runs `verify` first when
+`agentos verify` reads `policies/verification.yaml` and runs each
+configured command (`format`, `compile`, `tests`, `policy`,
+`security`). It derives the status from the exit code. It records the
+command, exit code, timestamp, and output hash in
+`evidence/ledger.ndjson`, then writes the derived status into
+`STATE.yaml`. `agentos done` runs `verify` first when
 a config is present, so the verdict comes from execution, not a
 self-reported value. `agentos init` detects common test commands
 (unittest, npm test, make test) and wires the repository-conformance check as
@@ -177,7 +181,7 @@ Run single checks against your repository's files:
 /path/to/agent-os/bin/agentos rules AGENTS.md
 ```
 
-Two more subcommands serve the Claude Code hooks and are not run by
+Two more subcommands serve the Claude Code hooks. You do not run them by
 hand: `hook-pre-tool` reads a tool call as JSON on stdin and exits 2 to
 block a `never` path, and `hook-stop` exits 2 to refuse a done claim
 when `STATE.yaml` or the ledger is invalid.
