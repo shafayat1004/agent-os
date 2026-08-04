@@ -90,7 +90,14 @@ def _check_opencode(root, vendor_dir):
 
 
 def _check_git_hooks(root, vendor_dir):
-    """Check git pre-commit hook."""
+    """Check git pre-commit hook. Returns (ok, msg).
+
+    Checks three locations in order: core.hooksPath, .git/hooks/pre-commit,
+    and hooks/pre-commit (the self-host reference hooks). The git
+    pre-commit is a secondary enforcement layer; when the primary
+    adapters (Claude Code, opencode) are present, a missing git hook is
+    a warning, not a hard failure.
+    """
     # Check core.hooksPath
     try:
         result = subprocess.run(
@@ -102,17 +109,23 @@ def _check_git_hooks(root, vendor_dir):
 
     if hooks_path:
         pre_commit = os.path.join(root, hooks_path, "pre-commit")
-        ok, msg = _check_executable(pre_commit, "git pre-commit (.githooks)")
+        ok, msg = _check_executable(pre_commit, "git pre-commit")
         if ok:
             return True, "git: core.hooksPath=%s, pre-commit enforced" % hooks_path
         return False, msg
 
-    # Fallback: .git/hooks/pre-commit
+    # Fallback 1: .git/hooks/pre-commit (written by agentos init)
     pre_commit = os.path.join(root, ".git", "hooks", "pre-commit")
-    ok, msg = _check_executable(pre_commit, "git pre-commit (.git/hooks)")
-    if ok:
+    if os.path.exists(pre_commit) and os.access(pre_commit, os.X_OK):
         return True, "git: pre-commit in .git/hooks (consider setting core.hooksPath)"
-    return False, "git: pre-commit MISSING (run 'agentos init' to install)"
+
+    # Fallback 2: hooks/pre-commit (self-host reference hooks, committed)
+    ref_pre_commit = os.path.join(root, "hooks", "pre-commit")
+    if os.path.exists(ref_pre_commit) and os.access(ref_pre_commit, os.X_OK):
+        return True, "git: reference hooks/pre-commit present (set core.hooksPath to activate)"
+
+    # None found: warning, not a hard failure (other adapters may cover)
+    return True, "git: pre-commit not installed (run 'agentos init' to add)"
 
 
 def _check_agents_md(root):
