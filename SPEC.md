@@ -1,4 +1,4 @@
-# SPEC.md - agent-os v0.3
+# SPEC.md - agent-os (release 0.4.0)
 
 Status: normative. This file states the rules the validator checks.
 
@@ -27,9 +27,9 @@ files. The validator checks conformance at every step.
 
 ## 2. Normative artifacts
 
-Six artifacts make up the v0.1 spec surface. Each has a schema or a fixed
-format, and the validator checks each one. The grade next to each artifact
-is its evidence grade from `WHITEPAPER.md`.
+Six artifacts make up the normative spec surface. Each has a schema or a
+fixed format, and the validator checks each one. The grade next to each
+artifact is its evidence grade from `WHITEPAPER.md`.
 
 | # | Artifact | What it standardizes | Grade |
 |---|---|---|---|
@@ -68,7 +68,7 @@ lines or fewer. Each points at `AGENTS.md` and adds nothing else. This
 keeps one operative source of truth with many entry points, so the spec
 stays model-independent. The validator does not currently check these
 pointer files. The five-line limit is a convention the agent follows,
-not a rule `agentos` enforces in v0.3.
+not a rule `agentos` enforces in 0.4.
 
 ### 2.2 `STATE.yaml` (task-state schema)
 
@@ -206,7 +206,7 @@ The validator lints the manifest. It checks that every
 `.claude/skills/*/SKILL.md` has a matching manifest entry, that required
 fields are present, and that the version string is valid semver.
 
-v0.1 ships the manifest and the lint only. It does not ship a promotion or
+v0.1 shipped the manifest and the lint only. It does not ship a promotion or
 benchmark pipeline for skills. See `ROADMAP.md`.
 
 ### 2.6 `policies/dependency-policy.yaml`
@@ -266,14 +266,67 @@ The trace file `evidence/trace.ndjson` is local instrumentation, not a
 seventh artifact. No check grades it, and it belongs in `.gitignore`.
 Its purpose is the context-accounting work in `ROADMAP.md`.
 
-Two deployment models exist. In the vendored model, the target repo
-carries its own copy of `bin/agentos` and the `agentos/` package. The
-reference hooks find it with `git rev-parse`, and the opencode plugin
-prefers it when present. agent-os uses this model on itself. In the init
-model, `agentos init` writes adapters that point at one shared agent-os
-checkout by absolute path; that checkout becomes a permanent dependency
-of every repo it wires. Both models use `$CLAUDE_PROJECT_DIR` paths in
+Two deployment models exist. In the vendored model (the default in 0.4.0),
+`agentos init` copies `bin/`, `agentos/`, `schemas/`, and `VERSION` into
+the target repo under `.agent-os/`. The generated hook wrappers and the
+opencode plugin reference this vendored copy with relative paths, so a
+fresh clone works without an external agent-os checkout. In the shared
+model (`agentos init --shared PATH`), the generated adapters point at one
+shared agent-os checkout by absolute path. That checkout becomes a
+permanent dependency of every repo it wires, and the model is not
+portable. Both models use `$CLAUDE_PROJECT_DIR` paths in
 `.claude/settings.json`, so the settings file is safe to commit.
+
+`agentos upgrade` refreshes the vendored runtime (`.agent-os/`) from a
+release tarball, leaving user-owned files (`AGENTS.md`, `STATE.yaml`,
+`evidence/`, `policies/`, `skills/`, `.claude/settings.json`,
+`.opencode/plugins/agentos.js`) untouched. The hook wrappers and opencode
+plugin are adapter glue: upgrade overwrites them. The `.agent-os/hooks/`
+extension directories (section 3.1) are user-owned and never overwritten.
+
+### 3.1 Hook extension directories
+
+A repo that needs checks the native schema cannot express (example: block
+edits to `App/Core/` unless a confirmation file exists, run a formatter
+after every edit, refuse done unless the changelog is updated) adds
+shell scripts to hook extension directories:
+
+```
+.agent-os/hooks/
+├── pre-tool.d/        # runs after the built-in path-policy check
+│   └── block-app-core.sh
+├── post-tool.d/       # runs after the built-in trace append
+│   └── run-formatter.sh
+└── stop.d/            # runs after the built-in verdict gate
+    └── require-changelog.sh
+```
+
+The built-in hook wrapper runs its check first, then every executable
+file in the sibling `.d` directory, in sorted filename order. The
+exit-code contract is the same as the built-in hooks: exit 2 blocks or
+refuses, exit 1 warns, exit 0 passes. A directory that is absent or
+empty is a no-op. `agentos upgrade` never touches `.d` contents.
+`agentos doctor` reports which extension scripts are present.
+
+### 3.2 Custom checks in `agentos all`
+
+A repo that needs its own checks as graded lines in the `agentos all`
+output adds them to `policies/custom-checks.yaml`:
+
+```yaml
+checks:
+  - name: changelog-updated
+    command: "git diff --name-only HEAD | grep -q CHANGELOG"
+    expect: pass
+    grade: A
+    on_fail: error
+```
+
+`agentos all` runs these after the six built-in checks. Each prints
+`[PASS] name (grade A)` or `[FAIL] name (grade A)`. A failing
+`on_fail: error` check blocks `agentos done`. A `warn` check does not.
+The file is optional; absent means no custom checks. `agentos upgrade`
+never overwrites it.
 
 ## 4. Validator (`agentos`)
 
@@ -297,14 +350,30 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   (`node_modules`, `.git`, `bin`, `obj`, `dist`, `build`, `packages`, and
   similar). The policy `ignore` list adds more directory names to skip.
 - `agentos all` runs every check. It exits nonzero on any failure.
-- `agentos init [DEST]` wires a repo for use. It copies the skeleton
-  artifacts, writes pointer files at `AGENTS.md` (`CLAUDE.md`,
-  `GEMINI.md`, `.github/copilot-instructions.md`), installs a git
-  `pre-commit` hook, writes the Claude Code hook wrappers under
-  `.claude/hooks/`, writes the opencode plugin under
+- `agentos init [DEST]` wires a repo for use. By default it vendors the
+  runtime (`.agent-os/`) into the target so the install is portable. With
+  `--shared PATH`, it writes adapters that point at a shared checkout.
+  It copies the skeleton artifacts, writes pointer files at `AGENTS.md`
+  (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`),
+  installs a git `pre-commit` hook, writes the Claude Code hook wrappers
+  under `.claude/hooks/`, writes the opencode plugin under
   `.opencode/plugins/`, and writes `.claude/settings.json` when that
   file does not exist. When it does exist, init prints a snippet to
   merge. It never overwrites a file that exists.
+- `agentos upgrade [--to VERSION] [--check]` refreshes the vendored
+  runtime in `.agent-os/` from a release tarball. Without `--to`, it
+  fetches the latest release. `--check` compares the local `VERSION`
+  against the latest release tag and reports only. Upgrade overwrites
+  adapter glue (hook wrappers, opencode plugin) and never touches
+  user-owned files. When a schema `schema_version` is higher than the
+  data conforms to, the registered migrator runs.
+- `agentos doctor` audits enforcement wiring: vendored runtime present
+  and version matches, `.claude/settings.json` references the hooks,
+  `.opencode/plugins/agentos.js` present, `core.hooksPath` set and
+  pre-commit executable, `AGENTS.md` present and valid. Reports a
+  per-harness matrix. Exit 0 = all wired, exit 1 = something broken.
+- `agentos --version` prints the release version, schema versions, and
+  adapter protocol version.
 - `agentos hook-pre-tool` serves the Claude Code PreToolUse hook. It
   reads the tool call JSON on stdin and checks the target path against
   the path policy. Exit 2 blocks, exit 1 warns, exit 0 allows.
@@ -352,7 +421,7 @@ Exit codes:
 - `1` means at least one check found a violation.
 - `2` means a config or usage error, such as a missing file or a bad flag.
 
-## 5. Repository layout (v0.3, only what is built)
+## 5. Repository layout (0.4.0, only what is built)
 
 ```
 agent-os/
@@ -401,19 +470,24 @@ agent-os/
 │   ├── hooks.py                # Claude Code hook subcommands, exit-code mapping
 │   ├── initcmd.py              # agentos init
 │   ├── bootstrap.py
+│   ├── version.py              # release, schema, and adapter protocol versions
 │   ├── yaml_min.py
 │   ├── jsonschema_min.py
 │   ├── pathmatch.py
 │   ├── gitutil.py
 │   ├── result.py
+│   ├── upgrade.py              # agentos upgrade (tarball fetch + refresh)
+│   ├── doctor.py               # agentos doctor (enforcement audit)
 │   ├── checks/
 │   │   ├── state.py
 │   │   ├── ledger.py
 │   │   ├── diff.py
 │   │   ├── rules.py
 │   │   ├── skills.py
-│   │   └── deps.py
+│   │   ├── deps.py
+│   │   └── custom.py           # policies/custom-checks.yaml runner
 │   └── grades.py
+├── VERSION                     # release semver (source of truth for the tag)
 └── tests/
 ```
 
@@ -429,15 +503,47 @@ adapters are committed: `.claude/settings.json` for Claude Code and
 `agentos all` on the repo itself and on a fresh init destination, and
 both must exit 0.
 
-## 6. Non-goals for v0.3
+## 6. Non-goals for 0.4.0
 
-agent-os v0.3 does not build:
+agent-os 0.4.0 does not build:
 
 - An agent runtime, orchestrator, or model adapter.
-- A skill promotion or deprecation pipeline. v0.1 ships a manifest format
-  and a lint only.
+- A skill promotion or deprecation pipeline. The manifest format and
+  lint shipped early and stay as-is.
 - A workflow state-machine engine.
 - A dashboard, telemetry sink, or knowledge graph.
 
 These stay documented and unbuilt. See `ROADMAP.md` for the gate each one
 needs before it gets built.
+
+## 7. Versioning
+
+Three version dimensions exist. They are independent and named
+distinctly so no ambiguity arises between the spec surface, the CLI
+release, and the schemas.
+
+| Dimension | Source of truth | Form | Bumped when |
+|---|---|---|---|
+| Release version | `VERSION` file at repo root | one semver, the git tag | any shipped change |
+| Schema version | `schema_version` integer at the top of each schema file | additive, per file | a schema field is added, removed, or its type changes |
+| Adapter protocol | `ADAPTER_PROTOCOL` integer in `agentos/version.py` | one integer | the hook stdin/stdout contract or exit-code mapping changes |
+
+`agentos --version` reports all three: `agentos 0.4.0 (schema
+evidence=1, skill=1, task-state=1; adapter protocol 1)`.
+
+### Compatibility rules
+
+- A schema `schema_version` bump is additive: a validator that knows
+  version N accepts data written for version N or lower. A migrator
+  upgrades older data when a higher version arrives.
+- An adapter protocol bump means a generated hook wrapper or opencode
+  plugin from an older release may not work with a newer runtime.
+  `agentos upgrade` refreshes the adapter glue.
+- The release version follows semver. In the 0.x line, a minor bump
+  marks a feature addition; a patch bump marks a fix.
+
+### Release discipline
+
+Every merge that ships gets a GitHub release with a semver tag and
+release notes. The release attaches a tarball of the `.agent-os/` tree
+for `agentos upgrade` to fetch.

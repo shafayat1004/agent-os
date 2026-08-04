@@ -68,7 +68,7 @@ class TestInit(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             summary = run_init(temp_dir, _ROOT)
             plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
-                                       "agentos.js")
+                                        "agentos.js")
             self.assertTrue(os.path.exists(plugin_path))
             with open(plugin_path) as plugin_file:
                 body = plugin_file.read()
@@ -76,7 +76,9 @@ class TestInit(unittest.TestCase):
             self.assertIn("tool.execute.after", body)
             self.assertIn("check-path", body)
             self.assertIn("session.idle", body)
-            self.assertIn(json.dumps(summary["agentos_bin"]), body)
+            # Vendored model: SHARED is null, plugin finds .agent-os/bin/agentos
+            self.assertIn(".agent-os/bin/agentos", body)
+            self.assertIn("null", body)
             # The idle nudge must never start a new AI turn. session.prompt
             # awaits a full turn, which deadlocks the TUI when called from
             # the handler of the event that marks the prior turn done. The
@@ -124,13 +126,17 @@ class TestInit(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             os.makedirs(os.path.join(temp_dir, ".git", "hooks"))
             run_init(temp_dir, _ROOT)
-            hook_path = os.path.join(temp_dir, ".git", "hooks", "pre-commit")
-            self.assertTrue(os.path.exists(hook_path))
-            self.assertTrue(os.access(hook_path, os.X_OK))
-            with open(hook_path) as hook_file:
+            # Vendored model: .githooks/pre-commit is the primary location
+            githooks_path = os.path.join(temp_dir, ".githooks", "pre-commit")
+            self.assertTrue(os.path.exists(githooks_path))
+            self.assertTrue(os.access(githooks_path, os.X_OK))
+            with open(githooks_path) as hook_file:
                 hook_body = hook_file.read()
             self.assertIn("diff --staged", hook_body)
-            self.assertIn(os.path.join(_ROOT, "bin", "agentos"), hook_body)
+            self.assertIn(".agent-os/bin/agentos", hook_body)
+            # Also written to .git/hooks/ as a fallback
+            git_hook_path = os.path.join(temp_dir, ".git", "hooks", "pre-commit")
+            self.assertTrue(os.path.exists(git_hook_path))
 
     def test_skips_pre_commit_without_git(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -211,6 +217,82 @@ class TestInit(unittest.TestCase):
             with self.assertRaises(OSError):
                 run_init(file_path, _ROOT)
 
+    def test_vendors_runtime_by_default(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            summary = run_init(temp_dir, _ROOT)
+            self.assertTrue(summary["vendored"])
+            # The vendored runtime exists
+            self.assertTrue(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", "bin", "agentos")))
+            self.assertTrue(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", "agentos", "cli.py")))
+            self.assertTrue(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", "schemas")))
+            self.assertTrue(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", "VERSION")))
+            # No __pycache__ vendored
+            self.assertFalse(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", "agentos", "__pycache__")))
+            # .gitignore inside .agent-os
+            self.assertTrue(os.path.exists(
+                os.path.join(temp_dir, ".agent-os", ".gitignore")))
+
+    def test_creates_extension_dirs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            for ext in ("pre-tool.d", "post-tool.d", "stop.d"):
+                ext_path = os.path.join(temp_dir, ".agent-os", "hooks", ext)
+                self.assertTrue(os.path.isdir(ext_path), ext)
+                self.assertTrue(os.path.exists(
+                    os.path.join(ext_path, ".gitkeep")))
+
+    def test_hook_wrappers_reference_vendored_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            for wrapper in ("agentos-pre-tool", "agentos-stop-check",
+                            "agentos-post-tool", "agentos-pre-compact"):
+                path = os.path.join(temp_dir, ".claude", "hooks", wrapper)
+                with open(path) as f:
+                    body = f.read()
+                self.assertIn(".agent-os/bin/agentos", body,
+                              "%s does not reference vendored path" % wrapper)
+
+    def test_hook_wrappers_have_extension_loop(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            # pre-tool and stop-check have the extension loop
+            for wrapper, ext_dir in [("agentos-pre-tool", "pre-tool.d"),
+                                     ("agentos-stop-check", "stop.d"),
+                                     ("agentos-post-tool", "post-tool.d")]:
+                path = os.path.join(temp_dir, ".claude", "hooks", wrapper)
+                with open(path) as f:
+                    body = f.read()
+                self.assertIn(ext_dir, body,
+                              "%s does not reference %s" % (wrapper, ext_dir))
+
+    def test_shared_mode_uses_absolute_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            summary = run_init(temp_dir, _ROOT, shared=True)
+            self.assertFalse(summary["vendored"])
+            self.assertTrue(os.path.isabs(summary["agentos_bin"]))
+            # No .agent-os/ directory in shared mode
+            self.assertFalse(os.path.exists(
+                os.path.join(temp_dir, ".agent-os")))
+            # Hook wrappers reference the absolute path
+            pre_tool = os.path.join(temp_dir, ".claude", "hooks",
+                                    "agentos-pre-tool")
+            with open(pre_tool) as f:
+                self.assertIn(summary["agentos_bin"], f.read())
+
+    def test_vendored_agentos_version_works(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            vendored_bin = os.path.join(temp_dir, ".agent-os", "bin", "agentos")
+            completed = subprocess.run([vendored_bin, "--version"],
+                                       cwd=temp_dir, capture_output=True, text=True)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("0.4.0", completed.stdout)
+
     def test_cli_init_exit_zero_and_bootstraps(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             captured_output = io.StringIO()
@@ -227,7 +309,8 @@ class TestInit(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             subprocess.run(["git", "init", "-q", temp_dir], check=True)
             run_init(temp_dir, _ROOT)
-            hook_path = os.path.join(temp_dir, ".git", "hooks", "pre-commit")
+            # Use the .githooks/pre-commit (the primary location)
+            hook_path = os.path.join(temp_dir, ".githooks", "pre-commit")
             completed = subprocess.run([hook_path], cwd=temp_dir,
                                        capture_output=True, text=True)
             self.assertEqual(completed.returncode, 0,

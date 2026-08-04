@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "type": "object",
   "required": ["claim", "status", "evidence_ref", "source_type", "ts"],
   "additionalProperties": false,

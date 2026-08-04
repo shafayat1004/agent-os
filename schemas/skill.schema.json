@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "type": "object",
   "required": ["name", "version", "owner", "purpose", "when_to_use"],
   "properties": {

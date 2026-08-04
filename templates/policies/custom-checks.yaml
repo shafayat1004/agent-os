@@ -1,0 +1,19 @@
+# Custom checks (optional). Add your own checks that run as part of
+# `agentos all` after the six built-in checks. Each check runs a shell
+# command; exit 0 is pass, any other exit is fail.
+#
+# on_fail: error  - blocks `agentos done` (same as a built-in failure)
+# on_fail: warn   - reports but does not block
+#
+# grade: the evidence grade for this check (A, A-, B+, B, etc.)
+#
+# Example:
+#
+# checks:
+#   - name: changelog-updated
+#     command: "git diff --name-only HEAD | grep -q CHANGELOG"
+#     expect: pass
+#     grade: A
+#     on_fail: error
+
+checks: []
