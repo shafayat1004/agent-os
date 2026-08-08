@@ -496,6 +496,28 @@ class TestVerifyAsserts(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertEqual(_state_value(temp_dir, "tests"), "pass")
 
+    def test_assert_on_null_command_warns(self):
+        # An assert block on a null command is a silent no-op; warn so
+        # the misconfiguration is visible.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_text = (
+                "commands:\n"
+                "  compile:\n"
+                "    command: null\n"
+                "    assert:\n"
+                '      contains:\n'
+                '        - "Started Fable compilation"\n'
+                "  tests: null\n"
+                "  format: null\n"
+                "  policy: null\n"
+                "  security: null\n"
+                "timeout: 60\n"
+            )
+            self._repo(temp_dir, config_text)
+            completed = _run(["verify"], temp_dir)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("assert is ignored", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

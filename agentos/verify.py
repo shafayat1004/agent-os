@@ -362,6 +362,11 @@ def run_verify(config_path, state_file, ledger_file, timeout=600, err=None):
             if assert_error:
                 print("agent-os: %s" % assert_error, file=err)
                 return 2
+            if command is None or (isinstance(command, str)
+                                   and command.strip() == ""):
+                print("agent-os: warning: verifier '%s' has an assert "
+                      "block but no command; the assert is ignored"
+                      % name, file=err)
         if command is None or command.strip() == "":
             status, evidence_ref, artifact, summary = (
                 _VERDICT_NA, "no command configured", "", "n/a  (no command)")
