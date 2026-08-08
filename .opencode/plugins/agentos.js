@@ -1,7 +1,8 @@
 // agent-os opencode plugin (installed by `agentos init`).
-// Enforcement adapter: blocks edits to never paths, refuses done claims
-// while STATE.yaml or evidence/ledger.ndjson is invalid, and appends a
-// trace line after each tool call.
+// Enforcement adapter: blocks edits to never paths, blocks shell
+// commands that match a deny rule, refuses done claims while STATE.yaml
+// or evidence/ledger.ndjson is invalid, and appends a trace line after
+// each tool call.
 // Resolution: a vendored bin/agentos in this repo wins. Otherwise the
 // shared checkout recorded below is used. null means this repo is vendored.
 import { existsSync, readFileSync } from "node:fs"
@@ -46,16 +47,36 @@ export const AgentOS = async ({ $, client, directory, worktree }) => {
         if (pending.size > 200) pending.clear()
         pending.set(input.callID, { tool: input.tool, args: output.args || {} })
       }
-      if (!EDIT_TOOLS.has(input.tool)) return
-      const target = output.args.filePath || output.args.notebookPath
-      if (!target) return
-      const { code, text } = await run(["check-path", target])
-      if (code === 2) {
-        throw new Error(text.trim() || "agent-os: path policy blocks this edit")
+      // Path policy: gate the file_path argument of edit tools.
+      if (EDIT_TOOLS.has(input.tool)) {
+        const target = output.args.filePath || output.args.notebookPath
+        if (target) {
+          const { code, text } = await run(["check-path", target])
+          if (code === 2) {
+            throw new Error(text.trim() || "agent-os: path policy blocks this edit")
+          }
+          if (code === 1 && text.trim()) {
+            await client.app.log({ body: { service: "agent-os", level: "warn",
+                                           message: text.trim() } })
+          }
+        }
       }
-      if (code === 1 && text.trim()) {
-        await client.app.log({ body: { service: "agent-os", level: "warn",
-                                       message: text.trim() } })
+      // Command policy: gate the command string of shell tools (#34).
+      // The Bash command string is the first concrete instance. This is
+      // the complement to the path check: one tool call can fire both.
+      if (input.tool === "bash") {
+        const command = output.args.command
+        if (command) {
+          const { code, text } = await run(["check-command", "--tool", "bash",
+                                            "--command", command])
+          if (code === 2) {
+            throw new Error(text.trim() || "agent-os: command policy blocks this command")
+          }
+          if (code === 1 && text.trim()) {
+            await client.app.log({ body: { service: "agent-os", level: "warn",
+                                           message: text.trim() } })
+          }
+        }
       }
     },
     "tool.execute.after": async (input) => {

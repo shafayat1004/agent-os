@@ -97,6 +97,8 @@ def main(argv=None):
                                            help="audit enforcement wiring")
     command_parser = subparsers.add_parser("hook-pre-tool")
     command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
+    command_parser.add_argument("--command-policy",
+                                default="policies/command-policy.yaml")
     command_parser = subparsers.add_parser("hook-stop")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
@@ -139,6 +141,13 @@ def main(argv=None):
     command_parser = subparsers.add_parser("check-path")
     command_parser.add_argument("paths", nargs="+")
     command_parser.add_argument("--path-policy", default="policies/path-policy.yaml")
+    command_parser = subparsers.add_parser("check-command")
+    command_parser.add_argument("--tool", required=True,
+                                help="the tool name, for example bash")
+    command_parser.add_argument("--command", required=True,
+                                help="the command string to classify")
+    command_parser.add_argument("--command-policy",
+                                default="policies/command-policy.yaml")
     command_parser = subparsers.add_parser("all")
     command_parser.add_argument("--state-file", default="STATE.yaml")
     command_parser.add_argument("--ledger-file", default="evidence/ledger.ndjson")
@@ -160,7 +169,7 @@ def main(argv=None):
         return 2
     if args.cmd == "hook-pre-tool":
         return hook_commands.run_pre_tool(sys.stdin.read(), args.path_policy,
-                                          os.getcwd())
+                                          args.command_policy, os.getcwd())
     if args.cmd == "hook-stop":
         return hook_commands.run_stop(args.state_file, args.ledger_file,
                                       run_tests=args.run_tests)
@@ -189,6 +198,9 @@ def main(argv=None):
     if args.cmd == "check-path":
         return hook_commands.run_check_path(args.paths, args.path_policy,
                                             os.getcwd())
+    if args.cmd == "check-command":
+        return hook_commands.run_check_command(args.tool, args.command,
+                                               args.command_policy)
     if args.cmd == "init":
         try:
             shared = args.shared is not None

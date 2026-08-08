@@ -1,7 +1,9 @@
 #!/bin/sh
-# agent-os pre-tool hook: check the agent's edit target against path policy.
+# agent-os pre-tool hook: check the agent's edit target against path policy
+# and the shell command string against command policy.
 # Wire as a PreToolUse hook. Reads the tool call JSON on stdin. Blocks
-# (exit 2) on a never match, warns (exit 1) on ask_first, allows otherwise.
+# (exit 2) on a never path match or a denied command, warns (exit 1) on
+# ask_first or a warn rule, allows otherwise.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$ROOT" || exit 0
 exec "$ROOT/bin/agentos" hook-pre-tool

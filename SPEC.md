@@ -1,4 +1,4 @@
-# SPEC.md - agent-os (release 0.6.0)
+# SPEC.md - agent-os (release 0.7.0)
 
 Status: normative. This file states the rules the validator checks.
 
@@ -229,6 +229,49 @@ The lint scans manifest files, such as `*.fsproj`, `*.csproj`,
 `packages.config`, or `package.json`, for banned names. The `ecosystems`
 list is open. Future ecosystems, such as npm or pip, can extend it.
 
+### 2.7 `policies/command-policy.yaml`
+
+The command policy gates shell tool invocations by command string. The
+Bash command string is the first concrete instance. This policy
+complements the path policy. The path policy gates the `file_path`
+argument of edit tools. The command policy gates the command string of
+shell tools. One tool call can fire both checks.
+
+```yaml
+tools:
+  bash:               # lowercase tool key (Claude Code "Bash", opencode "bash")
+    deny:             # a hard block (exit 2). Each entry is a regex or a mapping.
+      - pattern: 'dotnet\s+fable'
+        reason: emits stray .fs.js files
+    warn: []          # a non-blocking warning (exit 1). Same entry shape as deny.
+    allow: []         # when non-empty, an unmatched command triggers an outside-scope warning.
+```
+
+Each entry under `deny`, `warn`, or `allow` is a regex (matched with
+`re.search`) or a mapping with a `pattern` key and an optional `reason`.
+The classifier checks `deny` first, then `warn`, then `allow`. `deny`
+beats `warn` beats `allow`.
+
+When `allow` has entries, a command that matches no list triggers an
+outside-scope warning (exit 1). When `allow` is empty or absent, the
+classifier lets an unmatched command through (exit 0). The skeleton
+template ships empty lists, so a new repository starts open.
+
+The classifier never silently accepts a structurally invalid entry. An
+entry with a misspelt key, or a non-string non-mapping value, triggers a
+warning finding so the operator sees the rule that does not load. This
+matters most for a deny rule: a misspelt deny key would let a blocked
+command through with no signal. The warning makes the failure visible.
+The same applies when a section value is not a list: the classifier
+warns and ignores the section.
+
+This check is distinct from issue #10 (detect writes done through shell
+commands). #34 gates the command string itself before it runs. #10
+detects a file mutation done through a shell command and applies path
+policy to the mutated path after the fact. Both checks matter. #10 does
+not block a forbidden command that has no file effect. This check does
+not catch a `sed` on a `never` path. One tool call can fire both.
+
 ## 3. Hook contract and harness adapters
 
 The checks are harness-neutral. Each coding agent gets a thin adapter
@@ -239,11 +282,11 @@ plugin file. `agentos init` writes all three.
 | Adapter | Fires on | Checks | Fail behavior |
 |---|---|---|---|
 | git `pre-commit` (`hooks/pre-commit`) | commit | path-policy and dependency-policy on the staged diff (`agentos diff --staged`, `agentos deps`) | block the commit (any nonzero exit) |
-| Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit | path-policy on the tool call's target path, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never`. Exit 1 (warn) on `ask_first` or an undeclared path |
+| Claude Code PreToolUse (`.claude/hooks/agentos-pre-tool`) | Edit, Write, MultiEdit, Bash | path-policy on the tool call's target path and command-policy on the command string, read from stdin JSON (`agentos hook-pre-tool`) | exit 2 (block) on `never` or a deny match. Exit 1 (warn) on `ask_first`, an undeclared path, or a warn rule |
 | Claude Code PostToolUse (`.claude/hooks/agentos-post-tool`) | every tool call | none. Appends the tool and target to `evidence/trace.ndjson` (`agentos hook-post-tool`) | none: instrumentation, exit 0 always |
 | Claude Code PreCompact (`.claude/hooks/agentos-pre-compact`) | compaction | none. Prints a reminder to refresh STATE.yaml, plus any STATE schema errors (`agentos hook-pre-compact`) | none: advisory, exit 0 always |
 | Claude Code Stop (`.claude/hooks/agentos-stop-check`) | session stop | STATE and ledger valid against their schemas. When STATE sets `stop_readiness: ready`, also the verdict gates (`agentos hook-stop`) | exit 2 (refuse the success claim) |
-| opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch | path-policy on the target path (`agentos check-path`) | throw (block) on `never`. Log a warning on `ask_first` |
+| opencode `tool.execute.before` (`.opencode/plugins/agentos.js`) | edit, write, multiedit, patch, bash | path-policy on the target path (`agentos check-path`) and command-policy on the command string (`agentos check-command`) | throw (block) on `never` or a deny match. Log a warning on `ask_first` or a warn rule |
 | opencode `tool.execute.after` (same plugin) | every tool call | none. Appends the tool and target to the trace (`agentos hook-post-tool`) | none: instrumentation, errors ignored |
 | opencode `session.idle` (same plugin) | session idle | `agentos done` when `stop_readiness: ready` (skips the spawn otherwise) | refuse the done claim with an actionable reason. Advisory toast and log (the git pre-commit hook is the hard gate) |
 
@@ -266,6 +309,12 @@ also pass `--run-tests CMD`. The gate then runs CMD and refuses the
 claim when CMD exits nonzero. Without the flag, the verdict values stay
 self-reported. The flag is repository wiring, not a validator default: only
 the repository knows its test command.
+
+The path check and the command check complement each other. Both fire
+on a Bash tool call that has both a `file_path` and a `command`. The
+worst exit code wins: a block from either check blocks the call. Issue
+#10 adds a third axis: it detects a file write done through a shell
+command and applies path policy to the mutated path after the fact.
 
 The trace file `evidence/trace.ndjson` is local instrumentation, not a
 seventh artifact. No check grades it, and it belongs in `.gitignore`.
@@ -414,7 +463,9 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   adapter protocol version.
 - `agentos hook-pre-tool` serves the Claude Code PreToolUse hook. It
   reads the tool call JSON on stdin and checks the target path against
-  the path policy. Exit 2 blocks, exit 1 warns, exit 0 allows.
+  the path policy and the command string against the command policy.
+  Exit 2 blocks (a `never` path or a deny command), exit 1 warns, exit 0
+  allows. The worst code wins when both checks fire.
 - `agentos hook-stop` serves the Claude Code Stop hook and the opencode
   idle check. It checks STATE and the ledger. Exit 2 refuses the done
   claim, exit 0 allows it. When STATE sets `stop_readiness: ready`, it
@@ -432,6 +483,13 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   policy with the editor-time contract: exit 2 on `never`, exit 1 on
   `ask_first` or an undeclared path, exit 0 otherwise. Harness adapters,
   such as the opencode plugin, call this.
+- `agentos check-command --tool TOOL --command CMD` checks a command
+  string against the command policy. Exit 2 on a deny match, exit 1 on
+  a warn match or an undeclared command (when `allow` has entries), exit
+  0 otherwise. The classifier lowercases the tool name, so one policy
+  key serves both harnesses. A missing, malformed, or unparseable policy
+  fails open. Harness adapters, such as the opencode plugin, call this
+  on Bash invocations.
 - `agentos verify` reads `policies/verification.yaml`, runs each
   configured command (`format`, `compile`, `tests`, `policy`,
   `security`), derives the status from the exit code, records the
@@ -499,6 +557,7 @@ agent-os/
 │   └── skill.schema.json
 ├── policies/
 │   ├── path-policy.yaml        # policy for the agent-os repo itself
+│   ├── command-policy.yaml     # command-string policy (issue #34)
 │   └── dependency-policy.yaml
 ├── skills/
 │   └── index.yaml
@@ -531,6 +590,7 @@ agent-os/
 │   │   ├── state.py
 │   │   ├── ledger.py
 │   │   ├── diff.py
+│   │   ├── command.py          # command-string policy check (issue #34)
 │   │   ├── rules.py
 │   │   ├── skills.py
 │   │   ├── deps.py
@@ -577,7 +637,7 @@ release, and the schemas.
 | Schema version | `schema_version` integer at the top of each schema file | additive, per file | someone adds or removes a schema field, or changes its type |
 | Adapter protocol | `ADAPTER_PROTOCOL` integer in `agentos/version.py` | one integer | the hook stdin/stdout contract or exit-code mapping changes |
 
-`agentos --version` reports all three: `agentos 0.5.0 (schema
+`agentos --version` reports all three: `agentos 0.7.0 (schema
 evidence=1, skill=1, task-state=1; adapter protocol 1)`.
 
 ### Compatibility rules

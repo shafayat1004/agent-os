@@ -1,38 +1,33 @@
-task_id: verifier-content-asserts-35
-goal: Add first-class content assertions (contains/excludes) to verification.yaml so a verifier that exits 0 without doing the work is caught; the ledger records the failed pattern, not just an exit code
+task_id: command-policy-34
+goal: Add a tool-argument policy that gates shell command strings before execution, mirroring the path-policy contract. The Bash command string is the first concrete instance.
 risk_class: reversible
-scope_in: [agentos/verify.py, agentos/initcmd.py, SPEC.md, VERSION, STATE.yaml, evidence/ledger.ndjson, tests/test_verify.py]
-scope_out: [WHITEPAPER.md, ROADMAP.md, schemas/, .opencode/plugins/agentos.js, agentos/hooks.py, agentos/cli.py]
+scope_in: [agentos/checks/command.py, agentos/hooks.py, agentos/cli.py, agentos/initcmd.py, .opencode/plugins/agentos.js, templates/policies/command-policy.yaml, policies/command-policy.yaml, SPEC.md, VERSION, STATE.yaml, evidence/ledger.ndjson, tests/test_command_policy.py, tests/test_hook_commands.py, tests/test_init.py]
+scope_out: [WHITEPAPER.md, ROADMAP.md, schemas/, hooks/pre-tool]
 acceptance_criteria:
-  - verification.yaml supports an assert block per verifier with contains and excludes lists
-  - a zero exit with a failed contains (missing pattern) marks the verifier fail
-  - a zero exit with a matched excludes (forbidden pattern present) marks the verifier fail
-  - the ledger records the failed pattern in evidence_ref, not just an exit code
-  - agentos done refuses the claim on a failed assert, same as on a nonzero exit
-  - tests cover pass exit plus pass assert, pass exit plus failed contains, pass exit plus matched excludes, timeout, and the full-rewrite writeback of a derived fail
-  - existing single-command configs with no assert block behave identically (no regression to #9)
-  - no third-party dependency added (stdlib only)
+  - A policy file declares per-tool allow/deny command patterns.
+  - agentos check-command classifies a command string and returns 2 on a denied match, 1 on a warned match, 0 otherwise.
+  - The opencode plugin throws on a denied Bash command; the Claude Code PreToolUse wrapper exits 2 on a denied Bash command.
+  - A missing or malformed policy fails open with a message, same as the path-policy contract.
+  - Tests cover denied command blocked, warned command permitted with a trace, allowed command permitted, missing policy fails open, malformed policy fails open.
+  - The relationship to #10 is documented: the two checks are complementary and both may fire on one tool call.
+  - No third-party dependency added (stdlib only).
+  - The full test suite passes and agentos all exits 0.
 confirmed_facts: []
 assumptions: []
 decisions:
-  - decision: each verifier value in commands can be a string (the #9 shape, backward compatible) or a mapping with command and assert keys
-    rationale: a mapping shape keeps the assert block next to the command it belongs to; a plain string preserves the existing config so no repo must migrate
-  - decision: a nonzero exit is still fail and the assert is not checked when the command already failed
-    rationale: the assert guards against a false green (exit 0 without the work); a nonzero exit is already a true fail, so the assert adds no signal there
-  - decision: a failed assert writes the specific pattern into evidence_ref (assert missing: "pattern" or assert forbidden: "pattern")
-    rationale: the ledger must record why the verifier failed, not just that it failed; this gives #12 a concrete evidence_ref to link to an acceptance criterion
-  - decision: bump the release version to 0.6.0 (minor, feature addition in the 0.x line)
-    rationale: SPEC section 7 says a minor bump marks a feature addition; content assertions are a new feature
+  - decision: regex patterns matched with re.search, not fnmatch globs
+    rationale: command strings need word-boundary-aware matching (for example dotnet\s+fable), which fnmatch globs cannot express; re is stdlib and matches the grep -E behavior the subject hook already uses
+  - decision: tool names are normalized to lowercase before policy lookup
+    rationale: Claude Code sends "Bash" and opencode sends "bash"; a single lowercase policy key serves both harnesses
+  - decision: an invalid regex fails open, same as a malformed YAML policy
+    rationale: a guardrail that cannot parse its rules must not wedge the editor; the message tells the user which pattern is broken
+  - decision: deny beats warn beats allow, and a non-empty allow list makes an unmatched command an outside-scope warning
+    rationale: this mirrors the path-policy never/ask_first/may_edit tier order exactly
+  - decision: bump the release version to 0.7.0 (minor, feature addition in the 0.x line)
+    rationale: SPEC section 7 says a minor bump marks a feature addition; command gating is a new enforcement axis
 failed_hypotheses: []
 open_questions: []
-changed_files:
-  - agentos/verify.py
-  - agentos/initcmd.py
-  - SPEC.md
-  - VERSION
-  - STATE.yaml
-  - evidence/ledger.ndjson
-  - tests/test_verify.py
+changed_files: []
 verification_status:
   format: n/a
   compile: n/a
@@ -40,24 +35,49 @@ verification_status:
   policy: pass
   security: n/a
 criteria:
+  - id: c-policy-file
+    statement: A policy file declares per-tool allow/deny command patterns.
+  - id: c-check-command-exit-codes
+    statement: agentos check-command classifies a command string and returns 2 on a denied match, 1 on a warned match, 0 otherwise.
+  - id: c-adapters-block
+    statement: The opencode plugin throws on a denied Bash command; the Claude Code PreToolUse wrapper exits 2 on a denied Bash command.
+  - id: c-fail-open
+    statement: A missing or malformed policy fails open with a message, same as the path-policy contract.
+  - id: c-tests-cover
+    statement: Tests cover denied command blocked, warned command permitted with a trace, allowed command permitted, missing policy fails open, malformed policy fails open.
+  - id: c-doc-relationship-10
+    statement: The relationship to #10 is documented: the two checks are complementary and both may fire on one tool call.
+  - id: c-stdlib-only
+    statement: No third-party dependency added (stdlib only).
+  - id: c-suite-passes-34
+    statement: The full test suite passes and agentos all exits 0.
   - id: c-assert-config
     statement: verification.yaml supports an assert block per verifier with contains and excludes lists
+    status: obsolete
   - id: c-assert-contains-fail
     statement: a zero exit with a failed contains (missing pattern) marks the verifier fail
+    status: obsolete
   - id: c-assert-excludes-fail
     statement: a zero exit with a matched excludes (forbidden pattern present) marks the verifier fail
+    status: obsolete
   - id: c-assert-ledger-evidence
     statement: the ledger records the failed pattern in evidence_ref, not just an exit code
+    status: obsolete
   - id: c-assert-done-refuses
     statement: agentos done refuses the claim on a failed assert, same as on a nonzero exit
+    status: obsolete
   - id: c-assert-tests-cover
     statement: tests cover pass exit plus pass assert, pass exit plus failed contains, pass exit plus matched excludes, timeout, and the full-rewrite writeback of a derived fail
+    status: obsolete
   - id: c-assert-no-regression
     statement: existing single-command configs with no assert block behave identically (no regression to #9)
+    status: obsolete
   - id: c-assert-stdlib-only
     statement: no third-party dependency added (stdlib only)
+    status: obsolete
   - id: c-suite-passes-35
     statement: the full test suite passes and agentos all exits 0
+    status: obsolete
   - id: c-portable-install
     statement: a fresh clone works without the original agent-os checkout path
     status: obsolete
@@ -101,5 +121,5 @@ criteria:
     statement: agent-os 0.5.0 is tagged and released on GitHub
     status: obsolete
 task_started: "2026-08-08T00:00:00Z"
-next_action: all 9 criteria proven in the ledger; agentos all green (custom checks pass); task complete, ready for PR
+next_action: all 8 criteria proven in the ledger; full suite passes (274 tests); agentos all green; ready for PR
 stop_readiness: ready
