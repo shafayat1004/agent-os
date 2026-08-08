@@ -1,49 +1,38 @@
-task_id: ste-glossary-sync-05
-goal: Update the ste-writing skill from the upstream agent-skills repo (glossary-backed terminology), add a regular check that decides whether a glossary update is necessary, document the discipline in SPEC, and bump the release to 0.5.0
+task_id: verifier-content-asserts-35
+goal: Add first-class content assertions (contains/excludes) to verification.yaml so a verifier that exits 0 without doing the work is caught; the ledger records the failed pattern, not just an exit code
 risk_class: reversible
-scope_in: [.claude/skills/ste-writing/, policies/custom-checks.yaml, skills/index.yaml, SPEC.md, VERSION, STATE.yaml, evidence/ledger.ndjson, tests/test_glossary_sync.py]
-scope_out: [WHITEPAPER.md, ROADMAP.md, .opencode/plugins/agentos.js, agentos/]
+scope_in: [agentos/verify.py, agentos/initcmd.py, SPEC.md, VERSION, STATE.yaml, evidence/ledger.ndjson, tests/test_verify.py]
+scope_out: [WHITEPAPER.md, ROADMAP.md, schemas/, .opencode/plugins/agentos.js, agentos/hooks.py, agentos/cli.py]
 acceptance_criteria:
-  - the ste-writing skill ships the updated glossary.json, SKILL.md, and ste-lint.py from the upstream agent-skills repo
-  - a provenance file pins the glossary content hash and the upstream source
-  - a regular custom check in agentos all validates glossary integrity with no network call
-  - an on-demand tool reports whether an upstream glossary update is necessary
-  - SPEC documents the ste-writing skill data assets and the sync discipline
-  - the full test suite passes and agentos all exits 0
-  - agent-os 0.5.0 is tagged and released on GitHub
-confirmed_facts:
-  - fact: the ste-writing skill was vendored from the upstream agent-skills repo (commit 153ade3) and carries a 16-domain glossary, an expanded rule catalog, and a regex-or-spaCy linter
-    evidence_ref: .claude/skills/ste-writing/SKILL.md, glossary.json, scripts/ste-lint.py
-  - fact: the v0.4.0 task (issues-13-15-versioned-portable) shipped and merged (PR #40, tag v0.4.0); its seven criteria are retired to obsolete so their file-hash proofs go silent
-    evidence_ref: STATE.yaml criteria status obsolete; git log commit cc4e982
-  - fact: the glossary avoid entries use either a prefer field or a replacement field (both shapes exist in the upstream data), plus a reason and a source
-    evidence_ref: .claude/skills/ste-writing/glossary.json domains go.javascript.avoid
+  - verification.yaml supports an assert block per verifier with contains and excludes lists
+  - a zero exit with a failed contains (missing pattern) marks the verifier fail
+  - a zero exit with a matched excludes (forbidden pattern present) marks the verifier fail
+  - the ledger records the failed pattern in evidence_ref, not just an exit code
+  - agentos done refuses the claim on a failed assert, same as on a nonzero exit
+  - tests cover pass exit plus pass assert, pass exit plus failed contains, pass exit plus matched excludes, timeout, and the full-rewrite writeback of a derived fail
+  - existing single-command configs with no assert block behave identically (no regression to #9)
+  - no third-party dependency added (stdlib only)
+confirmed_facts: []
 assumptions: []
 decisions:
-  - decision: the regular glossary check is a custom check with on_fail warn, not a built-in validator check, because a stale glossary does not break the validator and the check must never block agentos done
-    rationale: the six built-in checks are the normative spec surface; skill data integrity is a maintenance concern, so it belongs in policies/custom-checks.yaml where repos opt in
-  - decision: the regular check makes no network call; it validates structure and compares the local content hash against a pinned provenance file, so it is deterministic and safe in tests and CI
-    rationale: network in agentos all would make the suite non-deterministic and break offline; the upstream necessity comparison is a separate on-demand or CI-cron command
-  - decision: the content hash excludes volatile metadata (the generated date and the note), so a metadata-only upstream change is not a necessary update
-    rationale: an update is absolutely necessary only when normative term content changes, which is the question the user asked the check to answer
-  - decision: bump the release version to 0.5.0 (minor, feature addition in the 0.x line)
-    rationale: SPEC section 7 says a minor bump marks a feature addition; the glossary-sync check and the skill update are features
+  - decision: each verifier value in commands can be a string (the #9 shape, backward compatible) or a mapping with command and assert keys
+    rationale: a mapping shape keeps the assert block next to the command it belongs to; a plain string preserves the existing config so no repo must migrate
+  - decision: a nonzero exit is still fail and the assert is not checked when the command already failed
+    rationale: the assert guards against a false green (exit 0 without the work); a nonzero exit is already a true fail, so the assert adds no signal there
+  - decision: a failed assert writes the specific pattern into evidence_ref (assert missing: "pattern" or assert forbidden: "pattern")
+    rationale: the ledger must record why the verifier failed, not just that it failed; this gives #12 a concrete evidence_ref to link to an acceptance criterion
+  - decision: bump the release version to 0.6.0 (minor, feature addition in the 0.x line)
+    rationale: SPEC section 7 says a minor bump marks a feature addition; content assertions are a new feature
 failed_hypotheses: []
-open_questions:
-  - should the glossary-sync check ship in templates/policies/custom-checks.yaml so target repos opt in by default, or stay agent-os-internal until a skill-vendor mechanism exists
+open_questions: []
 changed_files:
-  - .claude/skills/ste-writing/SKILL.md
-  - .claude/skills/ste-writing/scripts/ste-lint.py
-  - .claude/skills/ste-writing/scripts/glossary-sync.py
-  - .claude/skills/ste-writing/glossary.json
-  - .claude/skills/ste-writing/glossary.provenance.json
-  - policies/custom-checks.yaml
-  - skills/index.yaml
+  - agentos/verify.py
+  - agentos/initcmd.py
   - SPEC.md
   - VERSION
   - STATE.yaml
   - evidence/ledger.ndjson
-  - tests/test_glossary_sync.py
+  - tests/test_verify.py
 verification_status:
   format: n/a
   compile: n/a
@@ -51,20 +40,24 @@ verification_status:
   policy: pass
   security: n/a
 criteria:
-  - id: c-glossary-vendored
-    statement: the ste-writing skill ships the updated glossary, SKILL.md, and linter from upstream
-  - id: c-glossary-provenance
-    statement: a provenance file pins the glossary content hash and the upstream source
-  - id: c-glossary-regular-check
-    statement: a regular custom check in agentos all validates glossary integrity with no network call
-  - id: c-glossary-necessity-tool
-    statement: an on-demand tool reports whether an upstream glossary update is necessary
-  - id: c-spec-glossary-docs
-    statement: SPEC documents the ste-writing skill data assets and the sync discipline
-  - id: c-suite-passes-05
+  - id: c-assert-config
+    statement: verification.yaml supports an assert block per verifier with contains and excludes lists
+  - id: c-assert-contains-fail
+    statement: a zero exit with a failed contains (missing pattern) marks the verifier fail
+  - id: c-assert-excludes-fail
+    statement: a zero exit with a matched excludes (forbidden pattern present) marks the verifier fail
+  - id: c-assert-ledger-evidence
+    statement: the ledger records the failed pattern in evidence_ref, not just an exit code
+  - id: c-assert-done-refuses
+    statement: agentos done refuses the claim on a failed assert, same as on a nonzero exit
+  - id: c-assert-tests-cover
+    statement: tests cover pass exit plus pass assert, pass exit plus failed contains, pass exit plus matched excludes, timeout, and the full-rewrite writeback of a derived fail
+  - id: c-assert-no-regression
+    statement: existing single-command configs with no assert block behave identically (no regression to #9)
+  - id: c-assert-stdlib-only
+    statement: no third-party dependency added (stdlib only)
+  - id: c-suite-passes-35
     statement: the full test suite passes and agentos all exits 0
-  - id: c-release-05
-    statement: agent-os 0.5.0 is tagged and released on GitHub
   - id: c-portable-install
     statement: a fresh clone works without the original agent-os checkout path
     status: obsolete
@@ -86,6 +79,27 @@ criteria:
   - id: c-suite-passes
     statement: the full test suite passes and agentos all exits 0
     status: obsolete
-task_started: "2026-08-05T00:00:00Z"
-next_action: 0.5.0 shipped (tag v0.5.0 + release + tarball asset); all 7 criteria proven in the ledger; task complete
+  - id: c-glossary-vendored
+    statement: the ste-writing skill ships the updated glossary, SKILL.md, and linter from upstream
+    status: obsolete
+  - id: c-glossary-provenance
+    statement: a provenance file pins the glossary content hash and the upstream source
+    status: obsolete
+  - id: c-glossary-regular-check
+    statement: a regular custom check in agentos all validates glossary integrity with no network call
+    status: obsolete
+  - id: c-glossary-necessity-tool
+    statement: an on-demand tool reports whether an upstream glossary update is necessary
+    status: obsolete
+  - id: c-spec-glossary-docs
+    statement: SPEC documents the ste-writing skill data assets and the sync discipline
+    status: obsolete
+  - id: c-suite-passes-05
+    statement: the full test suite passes and agentos all exits 0
+    status: obsolete
+  - id: c-release-05
+    statement: agent-os 0.5.0 is tagged and released on GitHub
+    status: obsolete
+task_started: "2026-08-08T00:00:00Z"
+next_action: all 9 criteria proven in the ledger; agentos all green (custom checks pass); task complete, ready for PR
 stop_readiness: ready

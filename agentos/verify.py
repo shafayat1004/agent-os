@@ -62,7 +62,27 @@ def _load_config(config_path, err):
     return config, None
 
 
-def _run_one(name, command, timeout, err):
+def _check_assert(output, assert_block):
+    """Check content assertions against verifier output (issue #35).
+
+    Returns (passed, detail) where detail names the failed pattern so
+    the ledger records why the verifier failed, not just that it failed.
+    A missing contains pattern yields 'assert missing: "pattern"'; a
+    matched excludes pattern yields 'assert forbidden: "pattern"'. An
+    assert block with no contains or no excludes is a no-op (passed).
+    """
+    contains = assert_block.get("contains") or []
+    excludes = assert_block.get("excludes") or []
+    for pattern in contains:
+        if pattern not in output:
+            return (False, 'assert missing: "%s"' % pattern)
+    for pattern in excludes:
+        if pattern in output:
+            return (False, 'assert forbidden: "%s"' % pattern)
+    return (True, "exit=0")
+
+
+def _run_one(name, command, timeout, err, assert_block=None):
     """Run one verifier command. Returns (status, evidence_ref, hash, summary).
 
     status is one of _VERDICT_PASS, _VERDICT_FAIL, _VERDICT_NA. A null or
@@ -70,6 +90,13 @@ def _run_one(name, command, timeout, err):
     rejected as a config error by the caller. A nonzero exit, a timeout,
     or a command that cannot start all count as a fail; the evidence_ref
     records which one happened so the ledger stays auditable.
+
+    When an assert block is present and the command exits 0, the captured
+    stdout plus stderr is checked against the assert contains and
+    excludes lists. A failed assert (a missing contains pattern or a
+    matched excludes pattern) marks the verifier fail with the specific
+    pattern in evidence_ref. This catches the false green where a
+    verifier exits 0 without doing the work.
     """
     if not command:
         return (_VERDICT_NA, "no command configured", "", "n/a  (no command)")
@@ -89,11 +116,16 @@ def _run_one(name, command, timeout, err):
                 "fail  (not runnable)  %s" % command)
     output = (completed.stdout or "") + (completed.stderr or "")
     artifact = hashlib.sha256(output.encode("utf-8")).hexdigest()
-    if completed.returncode == 0:
-        return (_VERDICT_PASS, "exit=0", artifact,
-                "pass  (exit 0)  %s" % command)
-    return (_VERDICT_FAIL, "exit=%d" % completed.returncode, artifact,
-            "fail  (exit %d)  %s" % (completed.returncode, command))
+    if completed.returncode != 0:
+        return (_VERDICT_FAIL, "exit=%d" % completed.returncode, artifact,
+                "fail  (exit %d)  %s" % (completed.returncode, command))
+    if assert_block:
+        passed, detail = _check_assert(output, assert_block)
+        if not passed:
+            return (_VERDICT_FAIL, detail, artifact,
+                    "fail  (assert)  %s" % command)
+    return (_VERDICT_PASS, "exit=0", artifact,
+            "pass  (exit 0)  %s" % command)
 
 
 def _ledger_record(name, status, evidence_ref, command, artifact):
@@ -257,6 +289,31 @@ def _full_rewrite(state_file, text, derived, err):
     return _full_serialize(data) + "\n"
 
 
+def _validate_assert(name, assert_block):
+    """Validate an assert block. Returns an error message string or None.
+
+    An assert block must be a mapping with optional contains and
+    excludes keys. Each key, when present, must hold a list of strings.
+    A non-mapping assert or a non-list entry is a config error: the
+    subset parser raises rather than silently accepting a shape it does
+    not support (per AGENTS.md).
+    """
+    if not isinstance(assert_block, dict):
+        return "verification assert '%s' is not a mapping" % name
+    for key in ("contains", "excludes"):
+        values = assert_block.get(key)
+        if values is None:
+            continue
+        if not isinstance(values, list):
+            return ("verification assert '%s' %s is not a list"
+                    % (name, key))
+        for item in values:
+            if not isinstance(item, str):
+                return ("verification assert '%s' %s has a non-string "
+                        "entry" % (name, key))
+    return None
+
+
 def run_verify(config_path, state_file, ledger_file, timeout=600, err=None):
     """Run the configured verifiers and write the derived status back.
 
@@ -287,19 +344,32 @@ def run_verify(config_path, state_file, ledger_file, timeout=600, err=None):
     summaries = []
     any_fail = False
     for name in _VERIFIERS:
-        command = commands.get(name)
+        entry = commands.get(name)
+        assert_block = None
+        if isinstance(entry, dict):
+            # Issue #35: a mapping value carries a command plus an
+            # optional assert block with contains and excludes lists.
+            assert_block = entry.get("assert")
+            command = entry.get("command")
+        else:
+            command = entry
         if command is not None and not isinstance(command, str):
             print("agent-os: verification command '%s' is not a string; "
                   "quote the command or set it to null" % name, file=err)
             return 2
+        if assert_block is not None:
+            assert_error = _validate_assert(name, assert_block)
+            if assert_error:
+                print("agent-os: %s" % assert_error, file=err)
+                return 2
         if command is None or command.strip() == "":
             status, evidence_ref, artifact, summary = (
                 _VERDICT_NA, "no command configured", "", "n/a  (no command)")
         else:
             status, evidence_ref, artifact, summary = _run_one(
-                name, command, configured_timeout, err)
+                name, command, configured_timeout, err, assert_block)
         derived[name] = status
-        records.append(_ledger_record(name, status, evidence_ref, command, artifact))
+        records.append(_ledger_record(name, status, evidence_ref, command or "", artifact))
         summaries.append("  %s: %s" % (name, summary))
         if status == _VERDICT_FAIL:
             any_fail = True
