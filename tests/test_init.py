@@ -68,13 +68,14 @@ class TestInit(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             summary = run_init(temp_dir, _ROOT)
             plugin_path = os.path.join(temp_dir, ".opencode", "plugins",
-                                       "agentos.js")
+                                        "agentos.js")
             self.assertTrue(os.path.exists(plugin_path))
             with open(plugin_path) as plugin_file:
                 body = plugin_file.read()
             self.assertIn("tool.execute.before", body)
             self.assertIn("tool.execute.after", body)
             self.assertIn("check-path", body)
+            self.assertIn("check-command", body)
             self.assertIn("session.idle", body)
             # Vendored model: SHARED is null, plugin finds .agent-os/bin/agentos
             self.assertIn(".agent-os/bin/agentos", body)
@@ -166,6 +167,20 @@ class TestInit(unittest.TestCase):
             self.assertEqual(config["commands"]["tests"],
                              "python3 -m unittest discover -s tests")
             self.assertIn("all", config["commands"]["policy"])
+
+    def test_writes_command_policy_template(self):
+        from agentos import yaml_min
+        with tempfile.TemporaryDirectory() as temp_dir:
+            run_init(temp_dir, _ROOT)
+            policy_path = os.path.join(temp_dir, "policies",
+                                        "command-policy.yaml")
+            self.assertTrue(os.path.exists(policy_path), policy_path)
+            with open(policy_path) as policy_file:
+                policy = yaml_min.load(policy_file.read())
+            self.assertIn("tools", policy)
+            self.assertIn("bash", policy["tools"])
+            # Empty default: a new repo starts open
+            self.assertEqual(policy["tools"]["bash"]["deny"], [])
 
     def test_verification_config_not_overwritten(self):
         with tempfile.TemporaryDirectory() as temp_dir:

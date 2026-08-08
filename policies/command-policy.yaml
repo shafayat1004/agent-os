@@ -1,0 +1,11 @@
+# Command policy for the agent-os repo itself (self-governance).
+# Gates shell tool invocations by command string before execution
+# (issue #34). The default below lets every command through: agent-os
+# development does not need command gating today. Narrow as rules emerge.
+# See templates/policies/command-policy.yaml for the entry shape and
+# the deny/warn/allow contract.
+tools:
+  bash:
+    deny: []
+    warn: []
+    allow: []

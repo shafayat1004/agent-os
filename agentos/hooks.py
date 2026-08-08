@@ -13,12 +13,14 @@ and `hook-pre-compact` is an advisory nudge; both exit 0 always.
 """
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
 import time
 
 from agentos import yaml_min
+from agentos.checks import command as command_check
 from agentos.checks import diff as diff_check
 from agentos.checks import ledger as ledger_check
 from agentos.checks import state as state_check
@@ -74,12 +76,51 @@ def run_check_path(paths, policy_path, cwd, err=None):
     return _classify_paths(paths, policy_path, cwd, err or sys.stderr)
 
 
-def run_pre_tool(stdin_text, policy_path, cwd, err=None):
-    """Check a Claude Code PreToolUse tool call against the path policy.
+def _classify_command(tool, command, policy_path, err):
+    """Classify a command string against the command policy.
 
-    Reads the hook JSON from stdin. Exit 2 blocks the edit (never match),
-    exit 1 warns without blocking (ask_first or undeclared path), exit 0
-    allows. Missing or malformed input fails open.
+    Returns the exit code: 2 on a deny match, 1 on a warn match or an
+    undeclared command (when an allow list is set), 0 otherwise. Fails
+    open on a missing, malformed, or unparseable policy.
+    """
+    if not command:
+        return 0
+    try:
+        result = command_check.check_command(policy_path, tool, command)
+    except (FileNotFoundError, OSError, yaml_min.YamlError,
+           re.error) as error:
+        print("agent-os: cannot enforce command policy (%s); allowing"
+              % error, file=err)
+        return 0
+    for finding in result.findings:
+        print("agent-os %s: %s" % (finding.level, finding.message), file=err)
+    if any(finding.level == "error" for finding in result.findings):
+        return 2
+    if result.findings:
+        return 1
+    return 0
+
+
+def run_check_command(tool, command, policy_path, err=None):
+    """Check a command string against the command policy.
+
+    Harness-neutral form of the pre-shell check: the opencode plugin and
+    the Claude Code PreToolUse wrapper both call this. Exit 2 blocks,
+    exit 1 warns, exit 0 allows.
+    """
+    return _classify_command(tool, command, policy_path, err or sys.stderr)
+
+
+def run_pre_tool(stdin_text, path_policy, command_policy, cwd, err=None):
+    """Check a Claude Code PreToolUse tool call against both policies.
+
+    Reads the hook JSON from stdin. The path policy gates the
+    file_path or notebook_path argument of edit tools (exit 2 on a never
+    match). The command policy gates the command string of shell tools,
+    with the Bash command string as the first concrete instance (exit 2
+    on a deny match). The two checks are complementary: one tool call
+    can fire both, and the worst exit code wins. Missing or malformed
+    input fails open.
     """
     err = err or sys.stderr
     try:
@@ -87,10 +128,14 @@ def run_pre_tool(stdin_text, policy_path, cwd, err=None):
     except ValueError:
         return 0  # input we cannot parse is not a violation: fail open
     tool_input = payload.get("tool_input") or {}
+    tool_name = payload.get("tool_name") or payload.get("tool") or ""
     target = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if target is None:
-        return 0
-    return _classify_paths([target], policy_path, cwd, err)
+    command = tool_input.get("command")
+    path_code = (_classify_paths([target], path_policy, cwd, err)
+                 if target is not None else 0)
+    command_code = (_classify_command(tool_name, command, command_policy, err)
+                    if command is not None else 0)
+    return max(path_code, command_code)
 
 
 _VERDICT_GREEN = ("pass", "n/a")
