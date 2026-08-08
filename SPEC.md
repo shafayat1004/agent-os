@@ -1,4 +1,4 @@
-# SPEC.md - agent-os (release 0.5.0)
+# SPEC.md - agent-os (release 0.6.0)
 
 Status: normative. This file states the rules the validator checks.
 
@@ -440,6 +440,17 @@ Subcommands, run as `agentos <subcommand>` or `./bin/agentos <subcommand>`:
   `STATE.yaml`. A `null` or omitted command marks that verifier
   unavailable (status `n/a`). A timeout or a non-runnable command is a
   fail. The verdict comes from execution, not a self-reported value.
+  Each verifier value can be a string (the command) or a mapping. A
+  mapping holds a `command` key and an optional `assert` block. After a
+  zero exit, the assert block checks the captured output. The `contains`
+  key lists strings that must be present. The `excludes` key lists
+  strings that must be absent. A failed assert marks the verifier fail.
+  The ledger records the pattern as `assert missing: "..."` or
+  `assert forbidden: "..."`.   This catches a false green: a verifier
+  that exits 0 without doing the work. A nonzero exit is still a fail.
+  The assert does not run in that case. When the assert is not a
+  mapping, or when a list entry is not a string, the config is invalid
+  (exit 2).
 - `agentos done` is the explicit completion gate. It runs the verdict
   gate unconditionally: STATE and the ledger must hold valid data,
   `stop_readiness` must read `ready` (the gate rejects a missing or
